@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aibos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aibos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aibos_password}
+      POSTGRES_DB: ${POSTGRES_DB:-aibos_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aibos} -d ${POSTGRES_DB:-aibos_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: aibos_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build:
+      context: ./backend
+    container_name: aibos_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: aibos_frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  uploads_data:
