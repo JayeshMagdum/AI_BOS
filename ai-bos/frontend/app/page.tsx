@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
-// Root path just forwards into the app shell for now.
-// Once Step 2 (Auth UI) exists, this will redirect to /login
-// for unauthenticated users instead.
+// Root path redirects to /login.
+// Once auth context is wired up (Day 3), this will check for a valid
+// session cookie first and forward authenticated users straight to /dashboard.
 export default function RootPage() {
-  redirect("/dashboard");
+  redirect("/login");
 }

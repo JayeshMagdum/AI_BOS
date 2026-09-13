@@ -52,6 +52,9 @@ services:
     restart: unless-stopped
     env_file:
       - ./frontend/.env
+    environment:
+      - WATCHPACK_POLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
     ports:
       - "3000:3000"
     depends_on:
@@ -59,6 +62,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
 
 volumes:
   postgres_data:

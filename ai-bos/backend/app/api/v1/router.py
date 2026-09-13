@@ -7,7 +7,12 @@ means main.py never needs to know about individual feature modules.
 """
 from fastapi import APIRouter
 
+from app.api.v1.auth import router as auth_router
+
 api_router = APIRouter(prefix="/api/v1")
+
+# ── Feature routers ──────────────────────────────────────
+api_router.include_router(auth_router)
 
 
 @api_router.get("/health", tags=["system"])
