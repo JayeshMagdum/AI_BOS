@@ -16,11 +16,15 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem("access_token", token);
+  document.cookie = `access_token=${token}; path=/; max-age=604800; SameSite=Lax`;
 }
 
 export function clearToken(): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem("access_token");
+  document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 }
 
 export function isAuthenticated(): boolean {
@@ -78,9 +82,17 @@ export async function apiFetch<T = unknown>(
 
 // ── Auth API ──────────────────────────────────────────────
 
-interface TokenResponse {
+export interface TokenResponse {
   access_token: string;
   token_type: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 export async function signup(email: string, password: string, fullName: string) {
@@ -105,6 +117,50 @@ export function logout() {
   clearToken();
 }
 
-export async function getMe() {
-  return apiFetch("/auth/me", { auth: true });
+export async function getMe(): Promise<User> {
+  return apiFetch<User>("/auth/me", { auth: true });
+}
+
+// ── Document API ──────────────────────────────────────────
+
+export interface DocumentItem {
+  id: string;
+  user_id: string;
+  filename: string;
+  file_size: number;
+  file_type: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function uploadDocument(file: File): Promise<DocumentItem> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE}/documents/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new ApiError(res.status, data.detail ?? `Upload failed with status ${res.status}`);
+  }
+
+  return res.json() as Promise<DocumentItem>;
+}
+
+export async function getDocuments(): Promise<DocumentItem[]> {
+  return apiFetch<DocumentItem[]>("/documents", { auth: true });
+}
+
+export async function deleteDocument(id: string): Promise<{ success: boolean; id: string }> {
+  return apiFetch<{ success: boolean; id: string }>(`/documents/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
 }

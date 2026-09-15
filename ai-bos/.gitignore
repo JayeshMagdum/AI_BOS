@@ -21,3 +21,6 @@ frontend/.env
 # Uploads (runtime data, not source)
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# Build artifacts
+*.tsbuildinfo
