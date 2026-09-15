@@ -2,53 +2,64 @@
  * app/(auth)/login/page.tsx
  *
  * Login + Sign-up page with tab toggle.
- * Calls POST /api/v1/auth/signup and POST /api/v1/auth/login,
- * stores the JWT, and redirects to /dashboard on success.
+ * Uses AuthContext to sign in or register, sync user state,
+ * and redirect to /dashboard.
  */
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { login, signup, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { useAuth } from "@/context/auth-context";
 
 type Tab = "login" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, login, signup } = useAuth();
+
   const [tab, setTab] = useState<Tab>("login");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If already authenticated, redirect straight to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
 
     const form = new FormData(e.currentTarget);
-    const email = form.get("email") as string;
+    const email = (form.get("email") as string)?.trim();
     const password = form.get("password") as string;
 
     try {
       if (tab === "signup") {
-        const fullName = form.get("fullname") as string;
+        const fullName = (form.get("fullname") as string)?.trim();
         await signup(email, password, fullName);
       } else {
         await login(email, password);
       }
-      // JWT is stored — redirect to dashboard
-      router.push("/dashboard");
+      // Successfully authenticated & user state hydrated -> navigate
+      router.replace("/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail);
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError("Something went wrong. Is the backend running?");
       }
-    } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -91,7 +102,10 @@ export default function LoginPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+          <div
+            id="auth-error-banner"
+            className="mb-4 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive"
+          >
             {error}
           </div>
         )}
@@ -174,16 +188,16 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Submit */}
+          {/* Submit button */}
           <Button
             type="submit"
             className="w-full mt-2"
-            disabled={loading}
+            disabled={submitting}
             id={tab === "login" ? "btn-signin" : "btn-signup"}
           >
-            {loading ? (
+            {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 {tab === "login" ? "Signing in…" : "Creating account…"}
               </>
             ) : tab === "login" ? (

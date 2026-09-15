@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app/(dashboard)/dashboard/page.tsx
  *
  * Step 3 — Dashboard UI (mock data)
@@ -14,10 +14,7 @@
  *
  * Smaller screens stack everything vertically (default flex behaviour).
  */
-import { Upload, Sparkles } from "lucide-react";
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { DocTypeChart } from "@/components/dashboard/doc-type-chart";
@@ -38,10 +35,6 @@ export const metadata = {
 };
 
 export default function DashboardPage() {
-  // In Step 8+, these will be replaced with:
-  //   const stats   = await fetchDashboardStats();
-  //   const activity = await fetchActivity({ days: 14 });
-  //   etc.
   const stats            = mockStats;
   const activity         = mockActivity;
   const docBreakdown     = mockDocTypeBreakdown;
@@ -50,29 +43,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page header ───────────────────────────────────── */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Welcome back — here&apos;s what&apos;s happening with your data.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/documents">
-              <Upload className="h-4 w-4" />
-              Upload
-            </Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/chat">
-              <Sparkles className="h-4 w-4" />
-              Ask AI
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <DashboardHeader />
 
       {/* ── Row 1: KPI stat cards ──────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
