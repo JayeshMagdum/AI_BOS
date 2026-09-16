@@ -69,6 +69,26 @@ def get_document(
     return svc.get_document(doc_id=doc_id, user_id=user_id)
 
 
+@router.get(
+    "/{doc_id}/extract",
+    summary="Extract text content and structural metadata from document",
+)
+def extract_document_text(
+    doc_id: uuid.UUID,
+    user_id_str: str = Depends(get_current_user_id),
+    svc: DocumentService = Depends(get_document_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    res = svc.extract_text(doc_id=doc_id, user_id=user_id)
+    return {
+        "document_id": doc_id,
+        "char_count": res.char_count,
+        "word_count": res.word_count,
+        "metadata": res.metadata,
+        "text_preview": res.text[:2000],
+    }
+
+
 @router.delete(
     "/{doc_id}",
     response_model=DocumentDeleteResponse,

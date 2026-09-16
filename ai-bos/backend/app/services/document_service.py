@@ -73,19 +73,36 @@ class DocumentService:
                     )
                 buffer.write(chunk)
 
+        # Perform text extraction on uploaded document
+        extraction_status = "completed"
+        error_msg = None
+        try:
+            from app.services.text_extraction_service import TextExtractionService
+            extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
+            if not extraction_result.text:
+                extraction_status = "completed"
+        except Exception as e:
+            extraction_status = "failed"
+            error_msg = f"Extraction error: {str(e)[:400]}"
+
         # Persist document metadata in DB
-        # Status is marked "completed" (ready) for this stage.
-        # Future steps will trigger background text extraction/embedding pipelines.
         document = self.repo.create(
             user_id=user_id,
             filename=clean_name,
             file_path=str(dest_path),
             file_size=total_size,
             file_type=ext,
-            status="completed",
+            status=extraction_status,
         )
+        if error_msg:
+            self.repo.update_status(document, status=extraction_status, error_message=error_msg)
 
         return document
+
+    def extract_text(self, doc_id: uuid.UUID, user_id: uuid.UUID):
+        doc = self.get_document(doc_id, user_id)
+        from app.services.text_extraction_service import TextExtractionService
+        return TextExtractionService.extract_from_file(Path(doc.file_path), doc.file_type)
 
     def list_documents(self, user_id: uuid.UUID) -> list[Document]:
         return self.repo.list_by_user(user_id)
