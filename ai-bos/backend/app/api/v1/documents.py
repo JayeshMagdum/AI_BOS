@@ -71,7 +71,7 @@ def get_document(
 
 @router.get(
     "/{doc_id}/extract",
-    summary="Extract text content and structural metadata from document",
+    summary="Extract text content, structural metadata, and chunk preview from document",
 )
 def extract_document_text(
     doc_id: uuid.UUID,
@@ -79,13 +79,34 @@ def extract_document_text(
     svc: DocumentService = Depends(get_document_service),
 ):
     user_id = uuid.UUID(user_id_str)
+    doc = svc.get_document(doc_id=doc_id, user_id=user_id)
     res = svc.extract_text(doc_id=doc_id, user_id=user_id)
+
+    from app.services.chunking_service import chunk_text
+    chunks = chunk_text(
+        res.text,
+        chunk_size=512,
+        chunk_overlap=64,
+        document_id=str(doc_id),
+        filename=doc.filename,
+    )
+
     return {
         "document_id": doc_id,
+        "filename": doc.filename,
         "char_count": res.char_count,
         "word_count": res.word_count,
-        "metadata": res.metadata,
+        "chunk_count": len(chunks),
+        "extraction_metadata": res.metadata,
         "text_preview": res.text[:2000],
+        "chunks_preview": [
+            {
+                "index": c.chunk_index,
+                "word_count": c.word_count,
+                "text": c.text[:300],
+            }
+            for c in chunks[:5]
+        ],
     }
 
 
