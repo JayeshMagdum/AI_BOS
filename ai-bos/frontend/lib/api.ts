@@ -164,3 +164,31 @@ export async function deleteDocument(id: string): Promise<{ success: boolean; id
     auth: true,
   });
 }
+
+// ── Chat API ──────────────────────────────────────────────
+
+export interface ChatSource {
+  filename: string;
+  document_id: string;
+  chunk_index: number;
+  relevance_score: number;
+  text_excerpt: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  sources: ChatSource[];
+  model: string;
+  token_usage: Record<string, number>;
+}
+
+export async function askQuestion(
+  question: string,
+  topK: number = 5
+): Promise<ChatResponse> {
+  return apiFetch<ChatResponse>("/chat/ask", {
+    method: "POST",
+    body: { question, top_k: topK },
+    auth: true,
+  });
+}
