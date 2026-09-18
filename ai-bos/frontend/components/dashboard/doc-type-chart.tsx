@@ -1,4 +1,4 @@
-﻿/**
+/**
  * doc-type-chart.tsx
  *
  * Horizontal bar chart showing document counts grouped by file type.
@@ -54,52 +54,60 @@ export function DocTypeChart({ data }: DocTypeChartProps) {
         <CardDescription>{total} total documents</CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
-          >
-            <XAxis
-              type="number"
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              dataKey="type"
-              type="category"
-              tick={{ fontSize: 12, fill: "hsl(var(--foreground))", fontWeight: 500 }}
-              tickLine={false}
-              axisLine={false}
-              width={36}
-            />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
-            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-              {data.map((entry) => (
-                <Cell key={entry.type} fill={entry.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-
-        {/* Percentage breakdown */}
-        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-          {data.map((entry) => (
-            <div key={entry.type} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2 w-2 rounded-sm"
-                  style={{ backgroundColor: entry.fill }}
+        {total === 0 ? (
+          <div className="flex h-44 flex-col items-center justify-center text-center">
+            <p className="text-xs text-muted-foreground">No document type data yet.</p>
+          </div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
                 />
-                <span className="text-muted-foreground">{entry.type}</span>
-              </div>
-              <span className="font-medium text-foreground">
-                {Math.round((entry.count / total) * 100)}%
-              </span>
+                <YAxis
+                  dataKey="type"
+                  type="category"
+                  tick={{ fontSize: 12, fill: "hsl(var(--foreground))", fontWeight: 500 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={40}
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {data.map((entry) => (
+                    <Cell key={entry.type} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Percentage breakdown */}
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+              {data.map((entry) => (
+                <div key={entry.type} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-sm"
+                      style={{ backgroundColor: entry.fill }}
+                    />
+                    <span className="text-muted-foreground">{entry.type}</span>
+                  </div>
+                  <span className="font-medium text-foreground">
+                    {total > 0 ? Math.round((entry.count / total) * 100) : 0}%
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -192,3 +192,69 @@ export async function askQuestion(
     auth: true,
   });
 }
+
+// ── Analytics API ──────────────────────────────────────────
+
+export interface StatsSummary {
+  total_documents: number;
+  total_storage_bytes: number;
+  storage_formatted: string;
+  processed_documents: number;
+  processing_documents: number;
+  failed_documents: number;
+  pending_documents: number;
+  total_queries: number;
+  system_accuracy_score: number;
+}
+
+export interface FileTypeItem {
+  type: string;
+  count: number;
+  percentage: number;
+  fill: string;
+}
+
+export interface FileTypeDistribution {
+  items: FileTypeItem[];
+  total: number;
+}
+
+export interface DailyActivityPoint {
+  day: string;
+  date: string;
+  uploads: number;
+  queries: number;
+}
+
+export interface ActivityTrendResponse {
+  data: DailyActivityPoint[];
+  period_days: number;
+  total_uploads: number;
+  total_queries: number;
+}
+
+export interface RecentUploadItem {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+  status: string;
+  uploaded_at: string;
+  uploaded_by: string;
+}
+
+export async function getAnalyticsStats(): Promise<StatsSummary> {
+  return apiFetch<StatsSummary>("/analytics/stats", { auth: true });
+}
+
+export async function getFileTypeDistribution(): Promise<FileTypeDistribution> {
+  return apiFetch<FileTypeDistribution>("/analytics/file-types", { auth: true });
+}
+
+export async function getActivityTrend(days: number = 14): Promise<ActivityTrendResponse> {
+  return apiFetch<ActivityTrendResponse>(`/analytics/activity?days=${days}`, { auth: true });
+}
+
+export async function getRecentUploads(limit: number = 5): Promise<RecentUploadItem[]> {
+  return apiFetch<RecentUploadItem[]>(`/analytics/recent-uploads?limit=${limit}`, { auth: true });
+}

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * recent-uploads.tsx
  *
  * A list of the most recent document uploads.
@@ -31,23 +31,34 @@ function formatRelativeTime(iso: string): string {
   return `${diffDays}d ago`;
 }
 
-const fileTypeConfig: Record<ApiFileType, { icon: React.ElementType; colour: string }> = {
+const fileTypeConfig: Record<string, { icon: React.ElementType; colour: string }> = {
   pdf:  { icon: FileText,        colour: "text-red-500"    },
   xlsx: { icon: FileSpreadsheet, colour: "text-green-600"  },
   docx: { icon: FileBarChart2,   colour: "text-blue-500"   },
   csv:  { icon: File,            colour: "text-amber-500"  },
+  txt:  { icon: FileText,        colour: "text-emerald-500"},
 };
 
-const statusConfig: Record<ApiFileStatus, { label: string; className: string }> = {
+const statusConfig: Record<string, { label: string; className: string }> = {
   processed:  { label: "Processed",  className: "bg-success/10 text-success" },
+  completed:  { label: "Completed",  className: "bg-success/10 text-success" },
   processing: { label: "Processing", className: "bg-warning/10 text-warning animate-pulse" },
+  pending:    { label: "Pending",    className: "bg-muted text-muted-foreground" },
   failed:     { label: "Failed",     className: "bg-destructive/10 text-destructive" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface RecentUploadsProps {
-  uploads: ApiUpload[];
+  uploads: (ApiUpload | {
+    id: string;
+    name: string;
+    type: string;
+    size: string;
+    status: string;
+    uploadedAt: string;
+    uploadedBy: string;
+  })[];
 }
 
 export function RecentUploads({ uploads }: RecentUploadsProps) {
@@ -59,7 +70,7 @@ export function RecentUploads({ uploads }: RecentUploadsProps) {
             Recent Uploads
           </CardTitle>
           <CardDescription className="mt-0.5">
-            Your latest {uploads.length} documents
+            {uploads.length > 0 ? `Your latest ${uploads.length} documents` : "No recent activity"}
           </CardDescription>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -68,44 +79,62 @@ export function RecentUploads({ uploads }: RecentUploadsProps) {
       </CardHeader>
 
       <CardContent className="px-0 pb-0">
-        <ul className="divide-y divide-border">
-          {uploads.map((upload) => {
-            const { icon: Icon, colour } = fileTypeConfig[upload.type];
-            const { label, className: badgeClass } = statusConfig[upload.status];
+        {uploads.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <File className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <p className="text-sm font-medium text-foreground">No documents uploaded yet</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">
+              Upload PDF, DOCX, XLSX, or CSV files to get started.
+            </p>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/documents">Upload Document</Link>
+            </Button>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {uploads.map((upload) => {
+              const cleanType = upload.type.toLowerCase().replace(".", "");
+              const typeCfg = fileTypeConfig[cleanType] ?? { icon: File, colour: "text-muted-foreground" };
+              const Icon = typeCfg.icon;
+              const statusCfg = statusConfig[upload.status.toLowerCase()] ?? {
+                label: upload.status,
+                className: "bg-muted text-muted-foreground",
+              };
 
-            return (
-              <li
-                key={upload.id}
-                className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/50"
-              >
-                {/* File type icon */}
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                  <Icon className={cn("h-4 w-4", colour)} />
-                </div>
-
-                {/* Name + size */}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {upload.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {upload.size} &middot; {formatRelativeTime(upload.uploadedAt)}
-                  </p>
-                </div>
-
-                {/* Status badge */}
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                    badgeClass
-                  )}
+              return (
+                <li
+                  key={upload.id}
+                  className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/50"
                 >
-                  {label}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+                  {/* File type icon */}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                    <Icon className={cn("h-4 w-4", typeCfg.colour)} />
+                  </div>
+
+                  {/* Name + size */}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {upload.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {upload.size} &middot; {formatRelativeTime(upload.uploadedAt)}
+                    </p>
+                  </div>
+
+                  {/* Status badge */}
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
+                      statusCfg.className
+                    )}
+                  >
+                    {statusCfg.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
