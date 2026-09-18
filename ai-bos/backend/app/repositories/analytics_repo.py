@@ -3,7 +3,8 @@ Analytics repository — database aggregation layer for business metrics.
 """
 
 import uuid
-from sqlalchemy import func, select
+from datetime import datetime, date
+from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
@@ -57,3 +58,34 @@ class AnalyticsRepository:
             .order_by(func.count(Document.id).desc())
         )
         return [(row.file_type.lower(), row.count) for row in self.db.execute(stmt).all()]
+
+    def get_daily_upload_counts(
+        self, user_id: uuid.UUID, since_datetime: datetime
+    ) -> dict[date, int]:
+        """
+        Group document uploads by date starting from since_datetime.
+        """
+        date_col = cast(Document.created_at, Date)
+        stmt = (
+            select(date_col.label("day"), func.count(Document.id).label("count"))
+            .where(
+                Document.user_id == user_id,
+                Document.created_at >= since_datetime,
+            )
+            .group_by(date_col)
+            .order_by(date_col.asc())
+        )
+        rows = self.db.execute(stmt).all()
+        return {row.day: row.count for row in rows}
+
+    def get_recent_uploads(self, user_id: uuid.UUID, limit: int = 5) -> list[Document]:
+        """
+        Get the N most recently uploaded documents for a user.
+        """
+        stmt = (
+            select(Document)
+            .where(Document.user_id == user_id)
+            .order_by(Document.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.execute(stmt).scalars().all())

@@ -2,7 +2,7 @@
 Pydantic schemas for Analytics API endpoints.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class StatsSummaryResponse(BaseModel):
@@ -27,3 +27,27 @@ class FileTypeItem(BaseModel):
 class FileTypeDistributionResponse(BaseModel):
     items: list[FileTypeItem]
     total: int
+
+
+class DailyActivityPoint(BaseModel):
+    day: str
+    date: str
+    uploads: int
+    queries: int
+
+
+class ActivityTrendResponse(BaseModel):
+    data: list[DailyActivityPoint]
+    period_days: int
+    total_uploads: int
+    total_queries: int
+
+
+class RecentUploadItem(BaseModel):
+    id: str
+    name: str
+    type: str
+    size: str
+    status: str
+    uploaded_at: str
+    uploaded_by: str = "You"
