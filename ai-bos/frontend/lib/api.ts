@@ -258,3 +258,68 @@ export async function getActivityTrend(days: number = 14): Promise<ActivityTrend
 export async function getRecentUploads(limit: number = 5): Promise<RecentUploadItem[]> {
   return apiFetch<RecentUploadItem[]>(`/analytics/recent-uploads?limit=${limit}`, { auth: true });
 }
+
+// ── Conversations API ──────────────────────────────────────
+
+export interface ConversationItem {
+  id: string;
+  title: string;
+  last_message?: string | null;
+  sources_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessageItem {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: ChatSource[];
+  model?: string;
+  token_usage?: Record<string, number>;
+  created_at: string;
+}
+
+export interface ConversationDetail {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages: ChatMessageItem[];
+}
+
+export async function getConversations(): Promise<ConversationItem[]> {
+  return apiFetch<ConversationItem[]>("/conversations", { auth: true });
+}
+
+export async function getConversation(id: string): Promise<ConversationDetail> {
+  return apiFetch<ConversationDetail>(`/conversations/${id}`, { auth: true });
+}
+
+export async function createConversation(title?: string): Promise<ConversationDetail> {
+  return apiFetch<ConversationDetail>("/conversations", {
+    method: "POST",
+    body: title ? { title } : {},
+    auth: true,
+  });
+}
+
+export async function deleteConversation(id: string): Promise<{ success: boolean; id: string }> {
+  return apiFetch<{ success: boolean; id: string }>(`/conversations/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export async function sendConversationMessage(
+  convId: string,
+  question: string,
+  topK: number = 5
+): Promise<ChatMessageItem> {
+  return apiFetch<ChatMessageItem>(`/conversations/${convId}/messages`, {
+    method: "POST",
+    body: { question, top_k: topK },
+    auth: true,
+  });
+}

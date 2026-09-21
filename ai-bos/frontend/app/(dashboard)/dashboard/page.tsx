@@ -6,13 +6,14 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { DocTypeChart } from "@/components/dashboard/doc-type-chart";
 import { RecentUploads } from "@/components/dashboard/recent-uploads";
-import { RecentChats } from "@/components/dashboard/recent-chats";
+import { RecentChats, GenericChatDisplay } from "@/components/dashboard/recent-chats";
 
 import {
   getAnalyticsStats,
   getActivityTrend,
   getFileTypeDistribution,
   getRecentUploads,
+  getConversations,
   FileTypeItem,
   DailyActivityPoint,
   RecentUploadItem,
@@ -30,19 +31,24 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<ApiStat[]>(mockStats);
   const [activity, setActivity] = useState<DailyActivityPoint[]>(mockActivity);
   const [docBreakdown, setDocBreakdown] = useState<FileTypeItem[]>(mockDocTypeBreakdown);
-  const [recentUploads, setRecentUploads] = useState<RecentUploadItem[]>(mockRecentUploads as unknown as RecentUploadItem[]);
+  const [recentUploads, setRecentUploads] = useState<RecentUploadItem[]>(
+    mockRecentUploads as unknown as RecentUploadItem[]
+  );
+  const [recentChats, setRecentChats] = useState<GenericChatDisplay[]>(mockRecentChats);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadDashboardData() {
       try {
-        const [statsRes, activityRes, fileTypesRes, uploadsRes] = await Promise.allSettled([
-          getAnalyticsStats(),
-          getActivityTrend(14),
-          getFileTypeDistribution(),
-          getRecentUploads(5),
-        ]);
+        const [statsRes, activityRes, fileTypesRes, uploadsRes, convsRes] =
+          await Promise.allSettled([
+            getAnalyticsStats(),
+            getActivityTrend(14),
+            getFileTypeDistribution(),
+            getRecentUploads(5),
+            getConversations(),
+          ]);
 
         if (!isMounted) return;
 
@@ -95,6 +101,22 @@ export default function DashboardPage() {
         if (uploadsRes.status === "fulfilled" && uploadsRes.value.length > 0) {
           setRecentUploads(uploadsRes.value);
         }
+
+        if (convsRes.status === "fulfilled") {
+          if (convsRes.value.length > 0) {
+            setRecentChats(
+              convsRes.value.slice(0, 5).map((c) => ({
+                id: c.id,
+                title: c.title,
+                lastMessage: c.last_message,
+                sources: c.sources_count,
+                createdAt: c.created_at,
+              }))
+            );
+          } else {
+            setRecentChats([]);
+          }
+        }
       } catch (err) {
         console.error("Failed to load live dashboard data:", err);
       }
@@ -129,7 +151,7 @@ export default function DashboardPage() {
       {/* ── Row 3: Lists ───────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <RecentUploads uploads={recentUploads} />
-        <RecentChats chats={mockRecentChats} />
+        <RecentChats chats={recentChats} />
       </div>
     </div>
   );
