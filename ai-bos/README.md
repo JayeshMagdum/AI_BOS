@@ -123,7 +123,25 @@ npm run dev
 | `GET` | `/api/v1/analytics/file-types` | Distribution of uploaded document types | ✅ |
 | `GET` | `/api/v1/analytics/activity` | Daily activity trend over N days | ✅ |
 | `GET` | `/api/v1/analytics/recent-uploads` | Latest documents formatted for dashboard | ✅ |
+| `GET` | `/api/v1/conversations` | List persistent conversation threads | ✅ |
+| `POST` | `/api/v1/conversations` | Create new conversation thread | ✅ |
+| `GET` | `/api/v1/conversations/{id}` | Get conversation with full message history | ✅ |
+| `DELETE` | `/api/v1/conversations/{id}` | Delete conversation thread | ✅ |
+| `POST` | `/api/v1/conversations/{id}/messages` | Multi-turn RAG chat with context memory | ✅ |
 | `GET` | `/api/v1/health` | Deep health check (DB + Qdrant) | ❌ |
+
+---
+
+## 🧪 Automated Testing & CI/CD
+
+Run the test suite locally with `pytest`:
+
+```bash
+cd backend
+pytest -v
+```
+
+GitHub Actions automatically runs the automated CI pipeline on all pushes to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ---
 
