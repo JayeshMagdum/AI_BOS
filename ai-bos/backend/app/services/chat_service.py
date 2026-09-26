@@ -7,6 +7,8 @@ Pipeline:
 3. Retrieved chunks are assembled into a context window.
 4. A structured prompt with context + question is sent to Google Gemini.
 5. Gemini returns an answer with source citations.
+
+Uses the new `google-genai` SDK (replacing deprecated `google-generativeai`).
 """
 
 from __future__ import annotations
@@ -64,6 +66,7 @@ Provide a well-structured answer based on the context above. Include source cita
 class ChatService:
     """
     Orchestrates the RAG pipeline: retrieve → prompt → generate.
+    Uses the google-genai Client SDK.
     """
 
     def __init__(
@@ -76,18 +79,17 @@ class ChatService:
             collection_name=settings.QDRANT_COLLECTION_NAME,
             model_name=settings.EMBEDDING_MODEL_NAME,
         )
-        self._gemini_model = None
+        self._gemini_client = None
 
     @property
-    def gemini_model(self):
-        """Lazy-load the Gemini generative model."""
-        if self._gemini_model is None:
-            import google.generativeai as genai
+    def gemini_client(self):
+        """Lazy-load the Gemini genai Client."""
+        if self._gemini_client is None:
+            from google import genai
 
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self._gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-            logger.info("Gemini model initialized: gemini-1.5-flash")
-        return self._gemini_model
+            self._gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            logger.info("Gemini genai Client initialized (model: gemini-3.8-flash)")
+        return self._gemini_client
 
     def chat(
         self,
@@ -95,6 +97,7 @@ class ChatService:
         user_id: str,
         top_k: int = 5,
         score_threshold: float = 0.3,
+        conversation_history: list[dict] | None = None,
     ) -> ChatResponse:
         """
         Answer a user question using RAG.
@@ -109,6 +112,9 @@ class ChatService:
             Number of chunks to retrieve.
         score_threshold : float
             Minimum similarity score for retrieved chunks.
+        conversation_history : list[dict] | None
+            Previous messages in the conversation for multi-turn context.
+            Each dict has 'role' ('user' or 'assistant') and 'content'.
 
         Returns
         -------
@@ -154,20 +160,45 @@ class ChatService:
 
         context = "\n\n".join(context_parts)
 
-        # Step 3: Generate answer with Gemini
-        prompt = CONTEXT_TEMPLATE.format(context=context, question=question)
+        # Step 3: Build conversation contents for multi-turn context
+        contents = []
 
+        # Add system instruction as initial user+model exchange
+        contents.append({
+            "role": "user",
+            "parts": [{"text": SYSTEM_PROMPT}],
+        })
+        contents.append({
+            "role": "model",
+            "parts": [{"text": "Understood. I will answer questions based solely on the provided document context and cite sources."}],
+        })
+
+        # Add conversation history for multi-turn context (up to last 10 exchanges)
+        if conversation_history:
+            recent_history = conversation_history[-20:]  # last 10 pairs (user + assistant)
+            for msg in recent_history:
+                role = "model" if msg["role"] == "assistant" else "user"
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": msg["content"]}],
+                })
+
+        # Add the current question with context
+        prompt = CONTEXT_TEMPLATE.format(context=context, question=question)
+        contents.append({
+            "role": "user",
+            "parts": [{"text": prompt}],
+        })
+
+        # Step 4: Generate answer with Gemini via new google-genai SDK
         try:
-            response = self.gemini_model.generate_content(
-                [
-                    {"role": "user", "parts": [SYSTEM_PROMPT]},
-                    {"role": "model", "parts": ["Understood. I will answer questions based solely on the provided document context and cite sources."]},
-                    {"role": "user", "parts": [prompt]},
-                ]
+            response = self.gemini_client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=contents,
             )
 
             answer = response.text if response.text else "I was unable to generate a response. Please try again."
-            model_name = "gemini-1.5-flash"
+            model_name = "gemini-2.0-flash"
 
             # Extract token usage if available
             token_usage = {}
@@ -180,10 +211,10 @@ class ChatService:
                 }
 
         except Exception as e:
-            logger.error("Gemini API error: %s", str(e))
+            logger.error("Gemini API error: %s", str(e), exc_info=True)
             answer = (
                 f"I found {len(matches)} relevant document sections, but encountered "
-                f"an error generating the response: {str(e)[:200]}. "
+                f"an error generating the response: {str(e)[:300]}. "
                 f"Please check your GEMINI_API_KEY configuration."
             )
             model_name = "error"

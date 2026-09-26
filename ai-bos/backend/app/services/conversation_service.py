@@ -121,14 +121,20 @@ class ConversationService:
             content=question.strip(),
         )
 
-        # 2. Query RAG engine
+        # 2. Build conversation history for context
+        history = []
+        for m in conv.messages:
+            history.append({"role": m.role, "content": m.content})
+
+        # 3. Query RAG engine with multi-turn context
         chat_res = self.chat_service.chat(
             question=question.strip(),
             user_id=str(user_id),
             top_k=top_k,
+            conversation_history=history,
         )
 
-        # 3. Format sources & token usage as JSON
+        # 4. Format sources & token usage as JSON
         sources_json = json.dumps([
             {
                 "filename": s.filename,
@@ -141,7 +147,7 @@ class ConversationService:
         ])
         token_usage_json = json.dumps(chat_res.token_usage)
 
-        # 4. Save assistant response
+        # 5. Save assistant response
         ai_msg = self.repo.add_message(
             conversation_id=conv_id,
             role="assistant",
@@ -151,7 +157,7 @@ class ConversationService:
             token_usage=token_usage_json,
         )
 
-        # 5. If this was the first question and title is default, generate a thread title
+        # 6. If this was the first question and title is default, generate a thread title
         if conv.title == "New Conversation" or not conv.title.strip():
             words = question.strip().split()
             clean_title = " ".join(words[:6])

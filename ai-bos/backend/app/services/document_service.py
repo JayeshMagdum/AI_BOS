@@ -76,10 +76,12 @@ class DocumentService:
         # Perform text extraction on uploaded document
         extraction_status = "completed"
         error_msg = None
+        extracted_text = ""
         try:
             from app.services.text_extraction_service import TextExtractionService
             extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
-            if not extraction_result.text:
+            extracted_text = extraction_result.text or ""
+            if not extracted_text.strip():
                 extraction_status = "completed"
         except Exception as e:
             extraction_status = "failed"
@@ -92,10 +94,71 @@ class DocumentService:
             file_path=str(dest_path),
             file_size=total_size,
             file_type=ext,
-            status=extraction_status,
+            status="processing" if extracted_text.strip() else extraction_status,
         )
         if error_msg:
             self.repo.update_status(document, status=extraction_status, error_message=error_msg)
+
+        # Chunk extracted text and embed into Qdrant vector store
+        if extracted_text.strip() and extraction_status != "failed":
+            try:
+                from app.services.chunking_service import chunk_text
+                from app.services.embedding_service import EmbeddingService
+                from app.core.config import settings as app_settings
+
+                # Chunk the text
+                chunks = chunk_text(
+                    text=extracted_text,
+                    chunk_size=512,
+                    chunk_overlap=64,
+                    document_id=str(document.id),
+                    filename=clean_name,
+                )
+
+                if chunks:
+                    # Convert TextChunk objects to dicts for embedding service
+                    chunk_dicts = [
+                        {
+                            "text": c.text,
+                            "chunk_index": c.chunk_index,
+                            "word_count": c.word_count,
+                        }
+                        for c in chunks
+                    ]
+
+                    # Embed and upsert into Qdrant
+                    embedding_svc = EmbeddingService(
+                        qdrant_host=app_settings.QDRANT_HOST,
+                        qdrant_port=app_settings.QDRANT_PORT,
+                        collection_name=app_settings.QDRANT_COLLECTION_NAME,
+                        model_name=app_settings.EMBEDDING_MODEL_NAME,
+                    )
+                    vectors_count = embedding_svc.upsert_chunks(
+                        chunks=chunk_dicts,
+                        document_id=str(document.id),
+                        user_id=str(user_id),
+                        filename=clean_name,
+                    )
+
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(
+                        "Indexed %d vectors for document %s (%s)",
+                        vectors_count, document.id, clean_name,
+                    )
+
+                # Mark as completed after successful indexing
+                self.repo.update_status(document, status="completed")
+
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error("Embedding pipeline error for doc %s: %s", document.id, str(e), exc_info=True)
+                self.repo.update_status(
+                    document,
+                    status="failed",
+                    error_message=f"Embedding error: {str(e)[:400]}",
+                )
 
         return document
 
@@ -123,6 +186,21 @@ class DocumentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found.",
             )
+
+        # Delete vectors from Qdrant
+        try:
+            from app.services.embedding_service import EmbeddingService
+            from app.core.config import settings as app_settings
+
+            embedding_svc = EmbeddingService(
+                qdrant_host=app_settings.QDRANT_HOST,
+                qdrant_port=app_settings.QDRANT_PORT,
+                collection_name=app_settings.QDRANT_COLLECTION_NAME,
+                model_name=app_settings.EMBEDDING_MODEL_NAME,
+            )
+            embedding_svc.delete_by_document(str(doc_id))
+        except Exception:
+            pass  # Don't fail the deletion if vector cleanup fails
 
         # Delete physical file
         try:
