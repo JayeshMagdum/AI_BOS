@@ -223,6 +223,58 @@ class EmbeddingService:
 
         return matches
 
+    def count_user_chunks(self, user_id: str) -> int:
+        """Count how many vector chunks are stored in Qdrant for this user."""
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+        try:
+            res = self.client.count(
+                collection_name=self.collection_name,
+                count_filter=Filter(
+                    must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+                ),
+                exact=True,
+            )
+            return res.count
+        except Exception as e:
+            logger.warning("Failed to count chunks for user %s: %s", user_id, e)
+            return 0
+
+    def get_user_chunks(self, user_id: str, limit: int = 5) -> list[EmbeddingMatch]:
+        """Retrieve recent chunks for a user when semantic search yields no matches on broad questions."""
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+        try:
+            records, _ = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+                ),
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+            matches = []
+            for hit in records:
+                payload = hit.payload or {}
+                matches.append(
+                    EmbeddingMatch(
+                        chunk_text=payload.get("text", ""),
+                        score=0.5,
+                        document_id=payload.get("document_id", ""),
+                        filename=payload.get("filename", ""),
+                        chunk_index=payload.get("chunk_index", 0),
+                        metadata={
+                            "word_count": payload.get("word_count", 0),
+                            "point_id": str(hit.id),
+                        },
+                    )
+                )
+            return matches
+        except Exception as e:
+            logger.warning("Failed to retrieve fallback chunks for user %s: %s", user_id, e)
+            return []
+
     def delete_by_document(self, document_id: str) -> None:
         """Remove all vectors belonging to a specific document."""
         from qdrant_client.models import Filter, FieldCondition, MatchValue

@@ -96,7 +96,7 @@ class ChatService:
         question: str,
         user_id: str,
         top_k: int = 5,
-        score_threshold: float = 0.3,
+        score_threshold: float = 0.2,
         conversation_history: list[dict] | None = None,
     ) -> ChatResponse:
         """
@@ -128,6 +128,15 @@ class ChatService:
             top_k=top_k,
             score_threshold=score_threshold,
         )
+
+        # Fallback for broad/summary questions (e.g. "summarize the document", "key takeaways", etc.)
+        # If semantic search didn't clear threshold, check if user actually has indexed documents.
+        if not matches and self.embedding_service.count_user_chunks(user_id) > 0:
+            logger.info(
+                "Semantic search returned 0 matches for '%s', fetching fallback document chunks for user %s",
+                question, user_id,
+            )
+            matches = self.embedding_service.get_user_chunks(user_id=user_id, limit=top_k)
 
         if not matches:
             return ChatResponse(
@@ -191,30 +200,59 @@ class ChatService:
         })
 
         # Step 4: Generate answer with Gemini via new google-genai SDK
-        try:
-            response = self.gemini_client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=contents,
-            )
+        # Use verified available models with automatic retry on temporary 503 demand spikes
+        candidate_models = list(dict.fromkeys([
+            getattr(settings, "GEMINI_MODEL", "gemini-flash-latest"),
+            "gemini-flash-latest",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+        ]))
 
-            answer = response.text if response.text else "I was unable to generate a response. Please try again."
-            model_name = "gemini-2.0-flash"
+        answer = ""
+        model_name = ""
+        token_usage = {}
+        last_error = None
 
-            # Extract token usage if available
-            token_usage = {}
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                meta = response.usage_metadata
-                token_usage = {
-                    "prompt_tokens": getattr(meta, "prompt_token_count", 0),
-                    "completion_tokens": getattr(meta, "candidates_token_count", 0),
-                    "total_tokens": getattr(meta, "total_token_count", 0),
-                }
+        import time
 
-        except Exception as e:
-            logger.error("Gemini API error: %s", str(e), exc_info=True)
+        for model_candidate in candidate_models:
+            for attempt in range(1, 4):
+                try:
+                    logger.info("Generating chat response using model %s (attempt %d/3)...", model_candidate, attempt)
+                    response = self.gemini_client.models.generate_content(
+                        model=model_candidate,
+                        contents=contents,
+                    )
+
+                    answer = response.text if response.text else "I was unable to generate a response. Please try again."
+                    model_name = model_candidate
+
+                    # Extract token usage if available
+                    if hasattr(response, "usage_metadata") and response.usage_metadata:
+                        meta = response.usage_metadata
+                        token_usage = {
+                            "prompt_tokens": getattr(meta, "prompt_token_count", 0),
+                            "completion_tokens": getattr(meta, "candidates_token_count", 0),
+                            "total_tokens": getattr(meta, "total_token_count", 0),
+                        }
+                    break
+                except Exception as e:
+                    last_error = e
+                    err_str = str(e)
+                    logger.warning("Gemini model %s attempt %d failed: %s", model_candidate, attempt, err_str)
+                    if "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str:
+                        time.sleep(attempt * 1.5)
+                        continue
+                    # Non-retryable error (e.g. 404), fall through to next candidate model
+                    break
+            if answer:
+                break
+
+        if not answer:
+            logger.error("All Gemini model candidates failed: %s", last_error, exc_info=True)
             answer = (
                 f"I found {len(matches)} relevant document sections, but encountered "
-                f"an error generating the response: {str(e)[:300]}. "
+                f"an error generating the response: {str(last_error)[:300]}. "
                 f"Please check your GEMINI_API_KEY configuration."
             )
             model_name = "error"
