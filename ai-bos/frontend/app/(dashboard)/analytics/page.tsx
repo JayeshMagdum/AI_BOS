@@ -12,12 +12,12 @@ import {
   FileTypeItem,
   StatsSummary,
 } from "@/lib/api";
-import { mockActivity, mockDocTypeBreakdown } from "@/lib/mock-data";
+import { mockActivity, mockDocTypeBreakdown, ApiActivityPoint, ApiDocTypeBreakdown } from "@/lib/mock-data";
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<StatsSummary | null>(null);
-  const [activity, setActivity] = useState<DailyActivityPoint[]>(mockActivity);
-  const [docBreakdown, setDocBreakdown] = useState<FileTypeItem[]>(mockDocTypeBreakdown);
+  const [activity, setActivity] = useState<ApiActivityPoint[]>(mockActivity);
+  const [docBreakdown, setDocBreakdown] = useState<ApiDocTypeBreakdown[]>(mockDocTypeBreakdown);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,11 +37,23 @@ export default function AnalyticsPage() {
         }
 
         if (activityRes.status === "fulfilled" && activityRes.value.data.length > 0) {
-          setActivity(activityRes.value.data);
+          setActivity(
+            activityRes.value.data.map((item) => ({
+              day: item.date,
+              queries: item.queries,
+              uploads: item.uploads,
+            }))
+          );
         }
 
         if (fileTypesRes.status === "fulfilled") {
-          setDocBreakdown(fileTypesRes.value.items);
+          setDocBreakdown(
+            fileTypesRes.value.items.map((item) => ({
+              type: item.type,
+              count: item.count,
+              fill: item.fill || "#6366f1",
+            }))
+          );
         }
       } catch (err) {
         console.error("Failed to load live analytics data:", err);

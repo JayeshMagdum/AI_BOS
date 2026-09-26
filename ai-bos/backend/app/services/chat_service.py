@@ -264,3 +264,109 @@ class ChatService:
             model=model_name,
             token_usage=token_usage,
         )
+
+    def get_suggested_queries(self, user_id: str, db) -> dict:
+        """
+        Generate dynamic suggested queries tailored strictly to the user's uploaded documents.
+        """
+        import re
+        from app.models.document import Document
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+        # Query user's completed documents
+        docs = (
+            db.query(Document)
+            .filter(
+                Document.user_id == user_id,
+                Document.status == "completed",
+            )
+            .order_by(Document.created_at.desc())
+            .all()
+        )
+
+        if not docs:
+            return {
+                "suggestions": [
+                    "Upload a business report or PDF to analyze key metrics",
+                    "Upload a spreadsheet or dataset to query and compare data",
+                    "Upload meeting notes or policies to extract action items",
+                    "What file formats and analytics features does AI BOS support?",
+                ],
+                "has_documents": False,
+            }
+
+        suggestions: list[str] = []
+        max_questions_per_doc = 2 if len(docs) <= 2 else 1
+
+        for doc in docs[:4]:
+            fname = doc.filename
+            clean_title = re.sub(r"\.[^.]+$", "", fname).replace("_", " ").replace("-", " ").strip()
+            ftype = (doc.file_type or "").lower()
+
+            # Retrieve text snippet from first chunk in Qdrant
+            snippet = ""
+            try:
+                records, _ = self.embedding_service.client.scroll(
+                    collection_name=self.embedding_service.collection_name,
+                    scroll_filter=Filter(
+                        must=[FieldCondition(key="document_id", match=MatchValue(value=str(doc.id)))]
+                    ),
+                    limit=1,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                if records:
+                    snippet = records[0].payload.get("text", "").lower()
+            except Exception as e:
+                logger.debug("Failed to retrieve snippet for doc %s: %s", doc.id, e)
+
+            lower_name = fname.lower()
+            doc_questions = []
+
+            # Domain keyword detection
+            if any(w in lower_name or w in snippet for w in ["shelf", "food", "freshness", "expiry", "diet", "nutrition", "temp"]):
+                doc_questions.append(f"What are the key food categories and freshness scores in {fname}?")
+                doc_questions.append(f"Which items have the highest and lowest shelf life in {clean_title}?")
+            elif any(w in lower_name or w in snippet for w in ["brembo", "sample", "daily report", "inspection", "qc", "qa", "testing"]):
+                doc_questions.append(f"Summarize daily sample submissions and dates in {fname}")
+                doc_questions.append(f"What was the total number of samples submitted in {clean_title}?")
+            elif any(w in lower_name or w in snippet for w in ["resume", "cv", "profile", "bio", "curriculum"]):
+                doc_questions.append(f"Summarize the professional experience and key skills in {fname}")
+                doc_questions.append(f"What technical strengths and qualifications are highlighted in {clean_title}?")
+            elif any(w in lower_name or w in snippet for w in ["financial", "revenue", "quarter", "budget", "q1", "q2", "q3", "q4", "expense", "profit", "loss"]):
+                doc_questions.append(f"What was the total revenue and growth reported in {fname}?")
+                doc_questions.append(f"Summarize the primary expense categories and metrics in {clean_title}")
+            elif any(w in lower_name or w in snippet for w in ["invoice", "bill", "receipt", "payment"]):
+                doc_questions.append(f"What is the total amount due and payment terms in {fname}?")
+                doc_questions.append(f"Extract the line items and vendor information from {clean_title}")
+            elif any(w in lower_name or w in snippet for w in ["meeting", "notes", "minutes", "agenda"]):
+                doc_questions.append(f"Extract the key action items and decisions from {fname}")
+                doc_questions.append(f"What were the primary discussion topics in {clean_title}?")
+            elif any(w in lower_name or w in snippet for w in ["contract", "agreement", "nda", "policy", "terms"]):
+                doc_questions.append(f"What are the key obligations and terms outlined in {fname}?")
+                doc_questions.append(f"Summarize the main clauses and stipulations in {clean_title}")
+            elif ftype in ["csv", "xlsx", "xls"] or "column" in snippet or "row" in snippet:
+                doc_questions.append(f"Summarize the key columns and metrics in {fname}")
+                doc_questions.append(f"What are the most notable data trends and patterns in {clean_title}?")
+            else:
+                doc_questions.append(f"What are the key takeaways from {fname}?")
+                doc_questions.append(f"Summarize the main topics and conclusions in {clean_title}")
+
+            suggestions.extend(doc_questions[:max_questions_per_doc])
+
+        # If only 1 document and under 4 questions, add depth queries
+        if len(docs) == 1 and len(suggestions) < 4:
+            fname = docs[0].filename
+            suggestions.append(f"Extract any key dates, figures, or important metrics from {fname}")
+            suggestions.append(f"What are the most actionable recommendations or anomalies in {fname}?")
+
+        # If user has multiple documents, optionally add a cross-document query
+        if len(docs) >= 2 and len(suggestions) < 4:
+            suggestions.append(f"Compare the key takeaways between {docs[0].filename} and {docs[1].filename}")
+
+        # Deduplicate while preserving order
+        unique_suggestions = list(dict.fromkeys(suggestions))
+        return {
+            "suggestions": unique_suggestions[:4],
+            "has_documents": True,
+        }

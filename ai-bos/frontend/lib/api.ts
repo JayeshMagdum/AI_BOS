@@ -193,6 +193,15 @@ export async function askQuestion(
   });
 }
 
+export interface ChatSuggestionsResponse {
+  suggestions: string[];
+  has_documents: boolean;
+}
+
+export async function getChatSuggestions(): Promise<ChatSuggestionsResponse> {
+  return apiFetch<ChatSuggestionsResponse>("/chat/suggestions", { auth: true });
+}
+
 // ── Analytics API ──────────────────────────────────────────
 
 export interface StatsSummary {

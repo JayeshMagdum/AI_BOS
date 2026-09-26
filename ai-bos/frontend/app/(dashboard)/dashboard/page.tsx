@@ -25,15 +25,16 @@ import {
   mockRecentUploads,
   mockRecentChats,
   ApiStat,
+  ApiActivityPoint,
+  ApiDocTypeBreakdown,
+  ApiUpload,
 } from "@/lib/mock-data";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<ApiStat[]>(mockStats);
-  const [activity, setActivity] = useState<DailyActivityPoint[]>(mockActivity);
-  const [docBreakdown, setDocBreakdown] = useState<FileTypeItem[]>(mockDocTypeBreakdown);
-  const [recentUploads, setRecentUploads] = useState<RecentUploadItem[]>(
-    mockRecentUploads as unknown as RecentUploadItem[]
-  );
+  const [activity, setActivity] = useState<ApiActivityPoint[]>(mockActivity);
+  const [docBreakdown, setDocBreakdown] = useState<ApiDocTypeBreakdown[]>(mockDocTypeBreakdown);
+  const [recentUploads, setRecentUploads] = useState<ApiUpload[]>(mockRecentUploads);
   const [recentChats, setRecentChats] = useState<GenericChatDisplay[]>(mockRecentChats);
 
   useEffect(() => {
@@ -91,15 +92,37 @@ export default function DashboardPage() {
         }
 
         if (activityRes.status === "fulfilled" && activityRes.value.data.length > 0) {
-          setActivity(activityRes.value.data);
+          setActivity(
+            activityRes.value.data.map((item) => ({
+              day: item.date,
+              queries: item.queries,
+              uploads: item.uploads,
+            }))
+          );
         }
 
         if (fileTypesRes.status === "fulfilled") {
-          setDocBreakdown(fileTypesRes.value.items);
+          setDocBreakdown(
+            fileTypesRes.value.items.map((item) => ({
+              type: item.type,
+              count: item.count,
+              fill: item.fill || "#6366f1",
+            }))
+          );
         }
 
         if (uploadsRes.status === "fulfilled" && uploadsRes.value.length > 0) {
-          setRecentUploads(uploadsRes.value);
+          setRecentUploads(
+            uploadsRes.value.map((u) => ({
+              id: u.id,
+              name: u.name,
+              type: u.type as any,
+              size: u.size,
+              status: u.status as any,
+              uploadedAt: u.uploaded_at,
+              uploadedBy: "You",
+            }))
+          );
         }
 
         if (convsRes.status === "fulfilled") {

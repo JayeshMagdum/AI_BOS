@@ -25,6 +25,7 @@ import {
   createConversation,
   deleteConversation,
   sendConversationMessage,
+  getChatSuggestions,
   ConversationItem,
   ChatMessageItem,
   ChatSource,
@@ -46,12 +47,29 @@ function ChatInner() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const suggestionPrompts = [
-    "Summarize our latest financial report",
-    "What are the key takeaways from the uploaded documents?",
-    "Extract action items from the meeting notes",
-    "Compare the data across uploaded spreadsheets",
-  ];
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [hasDocuments, setHasDocuments] = useState<boolean>(true);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<boolean>(true);
+
+  // Load document-aware suggestions
+  const loadSuggestions = async () => {
+    try {
+      setIsLoadingSuggestions(true);
+      const res = await getChatSuggestions();
+      setSuggestions(res.suggestions);
+      setHasDocuments(res.has_documents);
+    } catch (err) {
+      console.error("Failed to load suggested queries:", err);
+      setSuggestions([
+        "What are the key takeaways from the uploaded documents?",
+        "Summarize the latest document",
+        "Extract notable numbers and findings",
+        "Compare data across uploaded files",
+      ]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
 
   // Load user conversation list
   const loadConversations = async () => {
@@ -67,6 +85,7 @@ function ChatInner() {
 
   useEffect(() => {
     loadConversations();
+    loadSuggestions();
   }, []);
 
   // Load messages when activeConvId changes
@@ -106,6 +125,7 @@ function ChatInner() {
     setActiveConvId(null);
     setMessages([]);
     setInput("");
+    loadSuggestions();
     inputRef.current?.focus();
   };
 
@@ -316,23 +336,42 @@ function ChatInner() {
 
                 {/* Suggestion prompts */}
                 <div className="pt-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-3">
-                    Suggested queries:
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {suggestionPrompts.map((prompt, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => handleSubmit(prompt)}
-                        disabled={isLoading}
-                        className="flex items-center justify-between rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-left text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-muted/40 disabled:opacity-50"
-                      >
-                        <span className="truncate mr-2">{prompt}</span>
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      {hasDocuments ? "Suggested queries for your documents:" : "Suggested queries to get started:"}
+                    </p>
+                    {hasDocuments && (
+                      <span className="text-[10px] text-primary/90 bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full font-medium">
+                        Tailored to your files
+                      </span>
+                    )}
                   </div>
+                  {isLoadingSuggestions ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className="h-10 rounded-xl border border-border/60 bg-muted/20 animate-pulse"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {suggestions.map((prompt, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleSubmit(prompt)}
+                          disabled={isLoading}
+                          className="group flex items-center justify-between rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-left text-xs text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-muted/40 hover:shadow-sm disabled:opacity-50"
+                        >
+                          <span className="truncate mr-2 group-hover:text-primary transition-colors">{prompt}</span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

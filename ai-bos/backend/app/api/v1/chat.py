@@ -40,6 +40,11 @@ class ChatAnswerResponse(BaseModel):
     token_usage: dict
 
 
+class SuggestionsResponse(BaseModel):
+    suggestions: list[str]
+    has_documents: bool
+
+
 # ── Dependencies ──────────────────────────────────────────
 
 def get_chat_service() -> ChatService:
@@ -47,6 +52,20 @@ def get_chat_service() -> ChatService:
 
 
 # ── Endpoints ─────────────────────────────────────────────
+
+@router.get(
+    "/suggestions",
+    response_model=SuggestionsResponse,
+    summary="Get dynamic suggested queries tailored strictly to the user's uploaded documents",
+)
+def get_suggestions(
+    user_id_str: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+    svc: ChatService = Depends(get_chat_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    return svc.get_suggested_queries(user_id=str(user_id), db=db)
+
 
 @router.post(
     "/ask",
