@@ -167,6 +167,85 @@ class DocumentService:
         from app.services.text_extraction_service import TextExtractionService
         return TextExtractionService.extract_from_file(Path(doc.file_path), doc.file_type)
 
+    def get_document_file(self, doc_id: uuid.UUID, user_id: uuid.UUID) -> tuple[Path, str, str]:
+        """Retrieve physical file path, filename, and file type for downloading."""
+        doc = self.get_document(doc_id, user_id)
+        path = Path(doc.file_path)
+        if not path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Physical file not found on storage disk.",
+            )
+        return path, doc.filename, doc.file_type
+
+    def get_document_preview(self, doc_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+        """Retrieve rich preview metadata, extracted text sample, chunk breakdown, and vector count."""
+        doc = self.get_document(doc_id, user_id)
+        from app.services.text_extraction_service import TextExtractionService
+        from app.services.chunking_service import chunk_text
+        from app.services.embedding_service import EmbeddingService
+        from app.core.config import settings as app_settings
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+        path = Path(doc.file_path)
+        extracted_text = ""
+        if path.exists():
+            res = TextExtractionService.extract_from_file(path, doc.file_type)
+            extracted_text = res.text or ""
+
+        chunks = (
+            chunk_text(
+                extracted_text,
+                chunk_size=512,
+                chunk_overlap=64,
+                document_id=str(doc_id),
+                filename=doc.filename,
+            )
+            if extracted_text
+            else []
+        )
+
+        vector_count = 0
+        try:
+            emb_svc = EmbeddingService(
+                qdrant_host=app_settings.QDRANT_HOST,
+                qdrant_port=app_settings.QDRANT_PORT,
+                collection_name=app_settings.QDRANT_COLLECTION_NAME,
+                model_name=app_settings.EMBEDDING_MODEL_NAME,
+            )
+            count_res = emb_svc.client.count(
+                collection_name=emb_svc.collection_name,
+                count_filter=Filter(
+                    must=[FieldCondition(key="document_id", match=MatchValue(value=str(doc_id)))]
+                ),
+                exact=True,
+            )
+            vector_count = count_res.count
+        except Exception:
+            pass
+
+        return {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_type": doc.file_type,
+            "file_size": doc.file_size,
+            "status": doc.status,
+            "created_at": doc.created_at,
+            "vector_count": vector_count,
+            "char_count": len(extracted_text),
+            "word_count": len(extracted_text.split()),
+            "chunk_count": len(chunks),
+            "text_preview": extracted_text[:3000],
+            "chunks_preview": [
+                {
+                    "chunk_index": c.chunk_index,
+                    "word_count": c.word_count,
+                    "text": c.text,
+                }
+                for c in chunks[:5]
+            ],
+        }
+
     def list_documents(self, user_id: uuid.UUID) -> list[Document]:
         return self.repo.list_by_user(user_id)
 

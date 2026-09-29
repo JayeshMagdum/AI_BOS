@@ -10,6 +10,7 @@ Endpoints:
 
 import uuid
 from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import get_current_user_id
@@ -17,8 +18,19 @@ from app.db.session import get_db
 from app.schemas.document import (
     DocumentDeleteResponse,
     DocumentResponse,
+    DocumentPreviewResponse,
 )
 from app.services.document_service import DocumentService
+
+MEDIA_TYPES = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "doc": "application/msword",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "xls": "application/vnd.ms-excel",
+    "csv": "text/csv",
+    "txt": "text/plain",
+}
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -67,6 +79,39 @@ def get_document(
 ):
     user_id = uuid.UUID(user_id_str)
     return svc.get_document(doc_id=doc_id, user_id=user_id)
+
+
+@router.get(
+    "/{doc_id}/download",
+    summary="Download the original uploaded document",
+)
+def download_document(
+    doc_id: uuid.UUID,
+    user_id_str: str = Depends(get_current_user_id),
+    svc: DocumentService = Depends(get_document_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    file_path, filename, ext = svc.get_document_file(doc_id=doc_id, user_id=user_id)
+    media_type = MEDIA_TYPES.get(ext.lower(), "application/octet-stream")
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type=media_type,
+    )
+
+
+@router.get(
+    "/{doc_id}/preview",
+    response_model=DocumentPreviewResponse,
+    summary="Get rich document preview, chunk breakdown, and vector index count",
+)
+def get_document_preview(
+    doc_id: uuid.UUID,
+    user_id_str: str = Depends(get_current_user_id),
+    svc: DocumentService = Depends(get_document_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    return svc.get_document_preview(doc_id=doc_id, user_id=user_id)
 
 
 @router.get(

@@ -29,3 +29,24 @@ class DocumentListResponse(BaseModel):
 class DocumentDeleteResponse(BaseModel):
     success: bool
     id: uuid.UUID
+
+
+class ChunkSample(BaseModel):
+    chunk_index: int
+    word_count: int
+    text: str
+
+
+class DocumentPreviewResponse(BaseModel):
+    id: uuid.UUID
+    filename: str
+    file_type: str
+    file_size: int
+    status: str
+    created_at: datetime
+    vector_count: int
+    char_count: int
+    word_count: int
+    chunk_count: int
+    text_preview: str
+    chunks_preview: list[ChunkSample]
