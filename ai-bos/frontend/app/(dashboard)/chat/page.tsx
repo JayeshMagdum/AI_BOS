@@ -16,6 +16,8 @@ import {
   Trash2,
   MessageSquare,
   ChevronRight,
+  FileDown,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
@@ -26,9 +28,11 @@ import {
   deleteConversation,
   sendConversationMessage,
   getChatSuggestions,
+  getDocuments,
   ConversationItem,
   ChatMessageItem,
   ChatSource,
+  DocumentItem,
   ApiError,
 } from "@/lib/api";
 
@@ -36,9 +40,12 @@ function ChatInner() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const initialConvId = searchParams.get("id");
+  const initialDocId = searchParams.get("doc");
 
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(initialConvId);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string>(initialDocId || "all");
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -83,9 +90,59 @@ function ChatInner() {
     }
   };
 
+  // Load documents for scoping
+  const loadDocuments = async () => {
+    try {
+      const list = await getDocuments();
+      setDocuments(list.filter((d) => d.status === "completed"));
+    } catch (err) {
+      console.error("Failed to load documents for chat scope:", err);
+    }
+  };
+
+  const handleExportChat = () => {
+    if (messages.length === 0) return;
+    const title = activeConv?.title || "AI_BOS_Chat";
+    let md = `# ${title}\n\n`;
+    md += `*Exported from AI BOS Knowledge Chat on ${new Date().toLocaleString()}*\n`;
+    if (selectedDocId !== "all") {
+      const doc = documents.find((d) => d.id === selectedDocId);
+      if (doc) {
+        md += `*Scoped to Document: ${doc.filename}*\n`;
+      }
+    }
+    md += `\n---\n\n`;
+
+    messages.forEach((m) => {
+      const sender = m.role === "user" ? "**User**" : "**AI Assistant**";
+      const time = new Date(m.created_at).toLocaleTimeString();
+      md += `### ${sender} (${time})\n\n${m.content}\n\n`;
+      if (m.sources && m.sources.length > 0) {
+        md += `**Sources:**\n`;
+        m.sources.forEach((s, idx) => {
+          md += `- Source ${idx + 1}: \`${s.filename}\` (Chunk ${s.chunk_index}, Relevance: ${(s.relevance_score * 100).toFixed(1)}%)\n`;
+          md += `  > ${s.text_excerpt.replace(/\n/g, " ")}\n`;
+        });
+        md += `\n`;
+      }
+    });
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cleanFilename = title.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    a.download = `${cleanFilename}.md`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
   useEffect(() => {
     loadConversations();
     loadSuggestions();
+    loadDocuments();
   }, []);
 
   // Load messages when activeConvId changes
@@ -171,8 +228,9 @@ function ChatInner() {
         setActiveConvId(targetConvId);
       }
 
-      // Post message in conversation
-      const aiResponse = await sendConversationMessage(targetConvId, question);
+      // Post message in conversation (scoped to document if selected)
+      const docScope = selectedDocId === "all" ? null : selectedDocId;
+      const aiResponse = await sendConversationMessage(targetConvId, question, 5, docScope);
       setMessages((prev) => [...prev, aiResponse]);
 
       // Refresh sidebar list to update last message & timestamp
@@ -289,21 +347,67 @@ function ChatInner() {
         {/* Chat Stream Main View */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Thread Header */}
-          <div className="px-6 py-3 border-b border-border/80 flex items-center justify-between bg-card/40">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="px-5 py-2.5 border-b border-border/80 flex flex-wrap items-center justify-between gap-2 bg-card/40">
+            <div className="flex items-center gap-2.5 min-w-0">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-              <h2 className="text-sm font-semibold truncate text-foreground">
+              <h2 className="text-sm font-semibold truncate text-foreground max-w-[180px] sm:max-w-xs">
                 {activeConv ? activeConv.title : "New Knowledge Query"}
               </h2>
+
+              {/* Document scope selector */}
+              {documents.length > 0 && (
+                <div className="flex items-center gap-1.5 ml-1 sm:ml-2">
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-background/70 px-2 py-1 text-xs">
+                    <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <select
+                      id="select-document-scope"
+                      value={selectedDocId}
+                      onChange={(e) => setSelectedDocId(e.target.value)}
+                      className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[180px] truncate"
+                      title="Filter AI reasoning to a specific document"
+                    >
+                      <option value="all" className="bg-popover text-popover-foreground">
+                        🌐 All Documents
+                      </option>
+                      {documents.map((doc) => (
+                        <option
+                          key={doc.id}
+                          value={doc.id}
+                          className="bg-popover text-popover-foreground"
+                        >
+                          📄 {doc.filename}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleNewChat}
-              className="md:hidden text-xs h-8"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> New
-            </Button>
+
+            <div className="flex items-center gap-1.5">
+              {messages.length > 0 && (
+                <Button
+                  id="btn-export-chat"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportChat}
+                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  title="Export conversation as Markdown"
+                >
+                  <FileDown className="h-3.5 w-3.5 mr-1" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleNewChat}
+                className="md:hidden text-xs h-8"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> New
+              </Button>
+            </div>
           </div>
 
           {/* Messages Stream */}
@@ -465,6 +569,23 @@ function ChatInner() {
 
           {/* Chat Input Bar */}
           <div className="border-t border-border bg-background/80 p-4 backdrop-blur-sm">
+            {selectedDocId !== "all" && (
+              <div className="flex items-center justify-between px-1 mb-2.5 text-xs">
+                <div className="flex items-center gap-1.5 text-primary font-medium">
+                  <Filter className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-sm sm:max-w-md">
+                    Scoped to: {documents.find((d) => d.id === selectedDocId)?.filename || selectedDocId}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocId("all")}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline shrink-0 ml-2"
+                >
+                  Clear filter (Search all)
+                </button>
+              </div>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();

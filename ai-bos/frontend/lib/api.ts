@@ -233,11 +233,16 @@ export interface ChatResponse {
 
 export async function askQuestion(
   question: string,
-  topK: number = 5
+  topK: number = 5,
+  documentId?: string | null
 ): Promise<ChatResponse> {
   return apiFetch<ChatResponse>("/chat/ask", {
     method: "POST",
-    body: { question, top_k: topK },
+    body: {
+      question,
+      top_k: topK,
+      ...(documentId ? { document_id: documentId } : {}),
+    },
     auth: true,
   });
 }
@@ -373,11 +378,16 @@ export async function deleteConversation(id: string): Promise<{ success: boolean
 export async function sendConversationMessage(
   convId: string,
   question: string,
-  topK: number = 5
+  topK: number = 5,
+  documentId?: string | null
 ): Promise<ChatMessageItem> {
   return apiFetch<ChatMessageItem>(`/conversations/${convId}/messages`, {
     method: "POST",
-    body: { question, top_k: topK },
+    body: {
+      question,
+      top_k: topK,
+      ...(documentId ? { document_id: documentId } : {}),
+    },
     auth: true,
   });
 }

@@ -559,7 +559,7 @@ export default function DocumentsPage() {
                           className="h-8 text-xs text-muted-foreground hover:text-primary"
                           title="Ask AI about this document"
                         >
-                          <Link href="/chat">
+                          <Link href={`/chat?doc=${doc.id}`}>
                             <Sparkles className="h-3.5 w-3.5 mr-1" />
                             <span className="hidden lg:inline">Ask AI</span>
                           </Link>
@@ -753,7 +753,7 @@ export default function DocumentsPage() {
                 asChild
                 className="h-8 text-xs"
               >
-                <Link href="/chat">
+                <Link href={`/chat?doc=${previewDoc.id}`}>
                   <Sparkles className="h-3.5 w-3.5 mr-1 text-primary" />
                   Chat with this Document
                 </Link>
