@@ -165,6 +165,55 @@ export async function deleteDocument(id: string): Promise<{ success: boolean; id
   });
 }
 
+export interface ChunkSample {
+  chunk_index: number;
+  word_count: number;
+  text: string;
+}
+
+export interface DocumentPreviewResponse {
+  id: string;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  status: string;
+  created_at: string;
+  vector_count: number;
+  char_count: number;
+  word_count: number;
+  chunk_count: number;
+  text_preview: string;
+  chunks_preview: ChunkSample[];
+}
+
+export async function getDocumentPreview(id: string): Promise<DocumentPreviewResponse> {
+  return apiFetch<DocumentPreviewResponse>(`/documents/${id}/preview`, { auth: true });
+}
+
+export function getDocumentDownloadUrl(id: string): string {
+  return `${API_BASE}/documents/${id}/download`;
+}
+
+export async function downloadDocumentFile(id: string, filename: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/documents/${id}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: "Failed to download document" }));
+    throw new ApiError(res.status, data.detail ?? "Failed to download document");
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
 // ── Chat API ──────────────────────────────────────────────
 
 export interface ChatSource {

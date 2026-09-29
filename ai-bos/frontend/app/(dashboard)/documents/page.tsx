@@ -14,6 +14,13 @@ import {
   RefreshCw,
   HardDrive,
   File,
+  Eye,
+  Download,
+  Layers,
+  X,
+  Database,
+  Copy,
+  Check,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +29,10 @@ import {
   getDocuments,
   uploadDocument,
   deleteDocument,
+  getDocumentPreview,
+  getDocumentDownloadUrl,
+  downloadDocumentFile,
+  DocumentPreviewResponse,
   ApiError,
 } from "@/lib/api";
 
@@ -89,8 +100,46 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<DocumentPreviewResponse | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
+  const [previewTab, setPreviewTab] = useState<"text" | "chunks">("text");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [copiedPreview, setCopiedPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenPreview = async (docId: string) => {
+    try {
+      setLoadingPreviewId(docId);
+      const data = await getDocumentPreview(docId);
+      setPreviewDoc(data);
+      setIsPreviewOpen(true);
+      setPreviewTab("text");
+    } catch (err) {
+      console.error("Failed to load document preview:", err);
+    } finally {
+      setLoadingPreviewId(null);
+    }
+  };
+
+  const handleDownload = async (docId: string, filename: string) => {
+    try {
+      setDownloadingId(docId);
+      await downloadDocumentFile(docId, filename);
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.detail : "Failed to download file";
+      setUploadError(msg);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPreview(true);
+    setTimeout(() => setCopiedPreview(false), 2000);
+  };
 
   const fetchDocs = useCallback(async () => {
     try {
@@ -471,6 +520,39 @@ export default function DocumentsPage() {
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
+                          id={`btn-preview-doc-${doc.id}`}
+                          variant="ghost"
+                          size="sm"
+                          disabled={loadingPreviewId === doc.id}
+                          onClick={() => handleOpenPreview(doc.id)}
+                          className="h-8 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          title="Preview document & chunks"
+                        >
+                          {loadingPreviewId === doc.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                          <span className="ml-1 hidden md:inline">Preview</span>
+                        </Button>
+
+                        <Button
+                          id={`btn-download-doc-${doc.id}`}
+                          variant="ghost"
+                          size="sm"
+                          disabled={downloadingId === doc.id}
+                          onClick={() => handleDownload(doc.id, doc.filename)}
+                          className="h-8 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10"
+                          title="Download original file"
+                        >
+                          {downloadingId === doc.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+
+                        <Button
                           variant="ghost"
                           size="sm"
                           asChild
@@ -507,6 +589,187 @@ export default function DocumentsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Document Preview Modal ──────────────────────── */}
+      {isPreviewOpen && previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div className="relative flex flex-col w-full max-w-3xl max-h-[85vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/20">
+              <div className="flex items-center gap-3 min-w-0">
+                {getFileIcon(previewDoc.file_type)}
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-foreground truncate">
+                    {previewDoc.filename}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <span className="uppercase font-medium px-1.5 py-0.2 rounded bg-secondary text-foreground text-[10px]">
+                      {previewDoc.file_type}
+                    </span>
+                    <span>•</span>
+                    <span>{formatBytes(previewDoc.file_size)}</span>
+                    <span>•</span>
+                    <span>{formatDate(previewDoc.created_at)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload(previewDoc.id, previewDoc.filename)}
+                  className="h-8 text-xs"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Download
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-4 gap-3 px-6 py-3 border-b border-border bg-muted/10 text-center">
+              <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                <p className="text-[11px] text-muted-foreground">Vector Points</p>
+                <p className="text-sm font-semibold text-emerald-400 mt-0.5 flex items-center justify-center gap-1">
+                  <Database className="h-3.5 w-3.5" />
+                  {previewDoc.vector_count}
+                </p>
+              </div>
+              <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                <p className="text-[11px] text-muted-foreground">Total Chunks</p>
+                <p className="text-sm font-semibold text-primary mt-0.5 flex items-center justify-center gap-1">
+                  <Layers className="h-3.5 w-3.5" />
+                  {previewDoc.chunk_count}
+                </p>
+              </div>
+              <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                <p className="text-[11px] text-muted-foreground">Word Count</p>
+                <p className="text-sm font-semibold text-foreground mt-0.5">
+                  {previewDoc.word_count.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-lg bg-background/50 p-2 border border-border/50">
+                <p className="text-[11px] text-muted-foreground">Characters</p>
+                <p className="text-sm font-semibold text-foreground mt-0.5">
+                  {previewDoc.char_count.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Tabs Bar */}
+            <div className="flex items-center justify-between border-b border-border px-6 py-2 bg-muted/5">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPreviewTab("text")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    previewTab === "text"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  Extracted Text
+                </button>
+                <button
+                  onClick={() => setPreviewTab("chunks")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    previewTab === "chunks"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  Indexed Chunks ({previewDoc.chunks_preview?.length || 0})
+                </button>
+              </div>
+
+              {previewTab === "text" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCopyText(previewDoc.text_preview)}
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {copiedPreview ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1 text-emerald-400" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy Text
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Modal Body Content */}
+            <div className="flex-1 overflow-y-auto p-6 max-h-[50vh]">
+              {previewTab === "text" ? (
+                <pre className="font-mono text-xs text-foreground/90 whitespace-pre-wrap break-words leading-relaxed rounded-xl bg-muted/30 p-4 border border-border/60">
+                  {previewDoc.text_preview || "No extracted text preview available for this document."}
+                </pre>
+              ) : (
+                <div className="space-y-3">
+                  {previewDoc.chunks_preview && previewDoc.chunks_preview.length > 0 ? (
+                    previewDoc.chunks_preview.map((chunk) => (
+                      <div
+                        key={chunk.chunk_index}
+                        className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span className="font-medium text-primary">
+                            Chunk #{chunk.chunk_index + 1}
+                          </span>
+                          <span>{chunk.word_count} words</span>
+                        </div>
+                        <p className="text-xs text-foreground/80 leading-relaxed font-mono whitespace-pre-wrap">
+                          {chunk.text}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-xs text-muted-foreground">
+                      No chunks indexed yet for this document.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-border px-6 py-3 bg-muted/20">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-8 text-xs"
+              >
+                <Link href="/chat">
+                  <Sparkles className="h-3.5 w-3.5 mr-1 text-primary" />
+                  Chat with this Document
+                </Link>
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsPreviewOpen(false)}
+                className="h-8 text-xs"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
