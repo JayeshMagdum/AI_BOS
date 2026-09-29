@@ -107,6 +107,7 @@ def send_message(
         user_id=user_id,
         question=body.question,
         top_k=body.top_k,
+        document_id=body.document_id,
     )
     if not msg:
         raise HTTPException(

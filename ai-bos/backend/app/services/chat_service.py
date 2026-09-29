@@ -98,6 +98,7 @@ class ChatService:
         top_k: int = 5,
         score_threshold: float = 0.2,
         conversation_history: list[dict] | None = None,
+        document_id: str | None = None,
     ) -> ChatResponse:
         """
         Answer a user question using RAG.
@@ -115,6 +116,8 @@ class ChatService:
         conversation_history : list[dict] | None
             Previous messages in the conversation for multi-turn context.
             Each dict has 'role' ('user' or 'assistant') and 'content'.
+        document_id : str | None
+            Optional document ID to scope vector retrieval to a specific document.
 
         Returns
         -------
@@ -127,21 +130,25 @@ class ChatService:
             user_id=user_id,
             top_k=top_k,
             score_threshold=score_threshold,
+            document_id=document_id,
         )
 
         # Fallback for broad/summary questions (e.g. "summarize the document", "key takeaways", etc.)
         # If semantic search didn't clear threshold, check if user actually has indexed documents.
-        if not matches and self.embedding_service.count_user_chunks(user_id) > 0:
+        if not matches and self.embedding_service.count_user_chunks(user_id=user_id, document_id=document_id) > 0:
             logger.info(
-                "Semantic search returned 0 matches for '%s', fetching fallback document chunks for user %s",
-                question, user_id,
+                "Semantic search returned 0 matches for '%s', fetching fallback document chunks for user %s (doc: %s)",
+                question, user_id, document_id,
             )
-            matches = self.embedding_service.get_user_chunks(user_id=user_id, limit=top_k)
+            matches = self.embedding_service.get_user_chunks(
+                user_id=user_id, limit=top_k, document_id=document_id
+            )
 
         if not matches:
+            scope_desc = "in the selected document" if document_id else "in your uploaded documents"
             return ChatResponse(
                 answer=(
-                    "I couldn't find any relevant information in your uploaded documents "
+                    f"I couldn't find any relevant information {scope_desc} "
                     "to answer this question. Please upload relevant documents first, "
                     "or try rephrasing your question."
                 ),

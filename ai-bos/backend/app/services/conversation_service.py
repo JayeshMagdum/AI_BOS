@@ -109,6 +109,7 @@ class ConversationService:
         user_id: uuid.UUID,
         question: str,
         top_k: int = 5,
+        document_id: str | None = None,
     ) -> ChatMessageResponse | None:
         conv = self.repo.get_by_id(conv_id, user_id)
         if not conv:
@@ -132,6 +133,7 @@ class ConversationService:
             user_id=str(user_id),
             top_k=top_k,
             conversation_history=history,
+            document_id=document_id,
         )
 
         # 4. Format sources & token usage as JSON

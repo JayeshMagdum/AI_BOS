@@ -23,6 +23,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)
+    document_id: str | None = None
 
 
 class SourceResponse(BaseModel):
@@ -89,6 +90,7 @@ def ask_question(
         question=body.question.strip(),
         user_id=str(user_id),
         top_k=body.top_k,
+        document_id=body.document_id,
     )
 
     return ChatAnswerResponse(

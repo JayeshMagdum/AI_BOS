@@ -168,9 +168,10 @@ class EmbeddingService:
         user_id: str,
         top_k: int = 5,
         score_threshold: float = 0.3,
+        document_id: str | None = None,
     ) -> list[EmbeddingMatch]:
         """
-        Search for chunks similar to the query, scoped to a specific user.
+        Search for chunks similar to the query, scoped to a specific user and optional document.
 
         Parameters
         ----------
@@ -182,6 +183,8 @@ class EmbeddingService:
             Maximum number of results to return.
         score_threshold : float
             Minimum cosine similarity score.
+        document_id : str | None
+            Optional document ID to scope search strictly to a single document.
 
         Returns
         -------
@@ -192,14 +195,18 @@ class EmbeddingService:
 
         query_vector = self.encode([query])[0]
 
+        must_conditions = [
+            FieldCondition(key="user_id", match=MatchValue(value=user_id))
+        ]
+        if document_id:
+            must_conditions.append(
+                FieldCondition(key="document_id", match=MatchValue(value=str(document_id)))
+            )
+
         results = self.client.search(
             collection_name=self.collection_name,
             query_vector=query_vector,
-            query_filter=Filter(
-                must=[
-                    FieldCondition(key="user_id", match=MatchValue(value=user_id))
-                ]
-            ),
+            query_filter=Filter(must=must_conditions),
             limit=top_k,
             score_threshold=score_threshold,
         )
@@ -223,16 +230,19 @@ class EmbeddingService:
 
         return matches
 
-    def count_user_chunks(self, user_id: str) -> int:
-        """Count how many vector chunks are stored in Qdrant for this user."""
+    def count_user_chunks(self, user_id: str, document_id: str | None = None) -> int:
+        """Count how many vector chunks are stored in Qdrant for this user (or document)."""
         from qdrant_client.models import Filter, FieldCondition, MatchValue
 
         try:
+            must_conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+            if document_id:
+                must_conditions.append(
+                    FieldCondition(key="document_id", match=MatchValue(value=str(document_id)))
+                )
             res = self.client.count(
                 collection_name=self.collection_name,
-                count_filter=Filter(
-                    must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-                ),
+                count_filter=Filter(must=must_conditions),
                 exact=True,
             )
             return res.count
@@ -240,16 +250,21 @@ class EmbeddingService:
             logger.warning("Failed to count chunks for user %s: %s", user_id, e)
             return 0
 
-    def get_user_chunks(self, user_id: str, limit: int = 5) -> list[EmbeddingMatch]:
+    def get_user_chunks(
+        self, user_id: str, limit: int = 5, document_id: str | None = None
+    ) -> list[EmbeddingMatch]:
         """Retrieve recent chunks for a user when semantic search yields no matches on broad questions."""
         from qdrant_client.models import Filter, FieldCondition, MatchValue
 
         try:
+            must_conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+            if document_id:
+                must_conditions.append(
+                    FieldCondition(key="document_id", match=MatchValue(value=str(document_id)))
+                )
             records, _ = self.client.scroll(
                 collection_name=self.collection_name,
-                scroll_filter=Filter(
-                    must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-                ),
+                scroll_filter=Filter(must=must_conditions),
                 limit=limit,
                 with_payload=True,
                 with_vectors=False,
