@@ -59,6 +59,8 @@ services:
     env_file:
       - ./frontend/.env
     environment:
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
       - WATCHPACK_POLLING=true
       - NEXT_TELEMETRY_DISABLED=1
     ports:
