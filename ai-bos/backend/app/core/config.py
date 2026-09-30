@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
     def parse_allowed_origins(cls, v: object) -> list[str]:
+        origins: list[str] = []
         if isinstance(v, str):
             v_str = v.strip()
             if v_str.startswith("[") and v_str.endswith("]"):
@@ -65,11 +66,16 @@ class Settings(BaseSettings):
                 try:
                     parsed = json.loads(v_str)
                     if isinstance(parsed, list):
-                        return parsed
+                        origins = [str(o).strip().strip("'\"").rstrip("/") for o in parsed if str(o).strip()]
                 except Exception:
                     v_str = v_str[1:-1].strip()
-            return [origin.strip().strip("'\"") for origin in v_str.split(",") if origin.strip()]
-        return v  # type: ignore
+            if not origins:
+                origins = [origin.strip().strip("'\"").rstrip("/") for origin in v_str.split(",") if origin.strip()]
+        elif isinstance(v, list):
+            origins = [str(o).strip().strip("'\"").rstrip("/") for o in v if str(o).strip()]
+        else:
+            return v  # type: ignore
+        return origins
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
