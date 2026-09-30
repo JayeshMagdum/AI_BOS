@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 25
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: str | list[str] = ["http://localhost:3000"]
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
                 v = f"{v}{separator}sslmode=require"
         return v
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
     def parse_allowed_origins(cls, v: object) -> list[str]:
         if isinstance(v, str):
@@ -63,10 +63,12 @@ class Settings(BaseSettings):
             if v_str.startswith("[") and v_str.endswith("]"):
                 import json
                 try:
-                    return json.loads(v_str)
-                except json.JSONDecodeError:
-                    pass
-            return [origin.strip() for origin in v_str.split(",") if origin.strip()]
+                    parsed = json.loads(v_str)
+                    if isinstance(parsed, list):
+                        return parsed
+                except Exception:
+                    v_str = v_str[1:-1].strip()
+            return [origin.strip().strip("'\"") for origin in v_str.split(",") if origin.strip()]
         return v  # type: ignore
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
