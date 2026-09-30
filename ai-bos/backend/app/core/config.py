@@ -6,6 +6,7 @@ with os.getenv() calls throughout the codebase. This keeps configuration
 auditable and makes it trivial to see every setting the app depends on.
 """
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +27,8 @@ class Settings(BaseSettings):
     # Vector DB
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
+    QDRANT_URL: str | None = None
+    QDRANT_API_KEY: str | None = None
     QDRANT_COLLECTION_NAME: str = "aibos_documents"
 
     # AI
@@ -38,6 +41,33 @@ class Settings(BaseSettings):
 
     # CORS
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            # Normalise postgres:// -> postgresql:// for SQLAlchemy 2.0
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql://", 1)
+            # Ensure sslmode=require for Neon or cloud-hosted postgres
+            if "neon.tech" in v and "sslmode" not in v:
+                separator = "&" if "?" in v else "?"
+                v = f"{v}{separator}sslmode=require"
+        return v
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            v_str = v.strip()
+            if v_str.startswith("[") and v_str.endswith("]"):
+                import json
+                try:
+                    return json.loads(v_str)
+                except json.JSONDecodeError:
+                    pass
+            return [origin.strip() for origin in v_str.split(",") if origin.strip()]
+        return v  # type: ignore
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

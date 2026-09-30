@@ -40,15 +40,21 @@ class EmbeddingService:
 
     def __init__(
         self,
-        qdrant_host: str = "qdrant",
-        qdrant_port: int = 6333,
-        collection_name: str = "aibos_documents",
-        model_name: str = "all-MiniLM-L6-v2",
+        qdrant_host: str | None = None,
+        qdrant_port: int | None = None,
+        qdrant_url: str | None = None,
+        qdrant_api_key: str | None = None,
+        collection_name: str | None = None,
+        model_name: str | None = None,
     ):
-        self.qdrant_host = qdrant_host
-        self.qdrant_port = qdrant_port
-        self.collection_name = collection_name
-        self.model_name = model_name
+        from app.core.config import settings
+
+        self.qdrant_host = qdrant_host or settings.QDRANT_HOST
+        self.qdrant_port = qdrant_port or settings.QDRANT_PORT
+        self.qdrant_url = qdrant_url or settings.QDRANT_URL
+        self.qdrant_api_key = qdrant_api_key or settings.QDRANT_API_KEY
+        self.collection_name = collection_name or settings.QDRANT_COLLECTION_NAME
+        self.model_name = model_name or settings.EMBEDDING_MODEL_NAME
 
         self._model = None
         self._qdrant_client = None
@@ -76,9 +82,19 @@ class EmbeddingService:
     def client(self):
         if self._qdrant_client is None:
             from qdrant_client import QdrantClient
-            self._qdrant_client = QdrantClient(
-                host=self.qdrant_host, port=self.qdrant_port
-            )
+            if self.qdrant_url:
+                logger.info("Connecting to Qdrant Cloud cluster at %s", self.qdrant_url)
+                self._qdrant_client = QdrantClient(
+                    url=self.qdrant_url,
+                    api_key=self.qdrant_api_key,
+                )
+            else:
+                logger.info("Connecting to Qdrant host at %s:%s", self.qdrant_host, self.qdrant_port)
+                self._qdrant_client = QdrantClient(
+                    host=self.qdrant_host,
+                    port=self.qdrant_port,
+                    api_key=self.qdrant_api_key,
+                )
             self._ensure_collection()
         return self._qdrant_client
 

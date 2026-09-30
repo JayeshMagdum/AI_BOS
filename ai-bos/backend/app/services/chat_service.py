@@ -73,12 +73,7 @@ class ChatService:
         self,
         embedding_service: EmbeddingService | None = None,
     ):
-        self.embedding_service = embedding_service or EmbeddingService(
-            qdrant_host=settings.QDRANT_HOST,
-            qdrant_port=settings.QDRANT_PORT,
-            collection_name=settings.QDRANT_COLLECTION_NAME,
-            model_name=settings.EMBEDDING_MODEL_NAME,
-        )
+        self.embedding_service = embedding_service or EmbeddingService()
         self._gemini_client = None
 
     @property

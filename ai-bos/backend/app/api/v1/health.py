@@ -43,9 +43,20 @@ def health_check(db: Session = Depends(get_db)):
     # 2. Check Qdrant Vector Store Reachability
     qdrant_start = time.perf_counter()
     try:
+        if settings.QDRANT_URL:
+            from urllib.parse import urlparse
+            parsed = urlparse(settings.QDRANT_URL)
+            q_host = parsed.hostname or settings.QDRANT_HOST
+            q_port = parsed.port or (443 if parsed.scheme == "https" else 6333)
+            target_label = settings.QDRANT_URL
+        else:
+            q_host = settings.QDRANT_HOST
+            q_port = settings.QDRANT_PORT
+            target_label = f"{q_host}:{q_port}"
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1.5)
-        result = sock.connect_ex((settings.QDRANT_HOST, settings.QDRANT_PORT))
+        sock.settimeout(2.0)
+        result = sock.connect_ex((q_host, q_port))
         sock.close()
         qdrant_latency = round((time.perf_counter() - qdrant_start) * 1000, 2)
 
@@ -53,14 +64,12 @@ def health_check(db: Session = Depends(get_db)):
             services["vector_store"] = {
                 "status": "healthy",
                 "latency_ms": qdrant_latency,
-                "host": settings.QDRANT_HOST,
-                "port": settings.QDRANT_PORT,
+                "target": target_label,
             }
         else:
             services["vector_store"] = {
                 "status": "unreachable",
-                "host": settings.QDRANT_HOST,
-                "port": settings.QDRANT_PORT,
+                "target": target_label,
             }
     except Exception as e:
         services["vector_store"] = {

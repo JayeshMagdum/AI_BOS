@@ -127,12 +127,7 @@ class DocumentService:
                     ]
 
                     # Embed and upsert into Qdrant
-                    embedding_svc = EmbeddingService(
-                        qdrant_host=app_settings.QDRANT_HOST,
-                        qdrant_port=app_settings.QDRANT_PORT,
-                        collection_name=app_settings.QDRANT_COLLECTION_NAME,
-                        model_name=app_settings.EMBEDDING_MODEL_NAME,
-                    )
+                    embedding_svc = EmbeddingService()
                     vectors_count = embedding_svc.upsert_chunks(
                         chunks=chunk_dicts,
                         document_id=str(document.id),
@@ -207,12 +202,7 @@ class DocumentService:
 
         vector_count = 0
         try:
-            emb_svc = EmbeddingService(
-                qdrant_host=app_settings.QDRANT_HOST,
-                qdrant_port=app_settings.QDRANT_PORT,
-                collection_name=app_settings.QDRANT_COLLECTION_NAME,
-                model_name=app_settings.EMBEDDING_MODEL_NAME,
-            )
+            emb_svc = EmbeddingService()
             count_res = emb_svc.client.count(
                 collection_name=emb_svc.collection_name,
                 count_filter=Filter(
@@ -269,14 +259,8 @@ class DocumentService:
         # Delete vectors from Qdrant
         try:
             from app.services.embedding_service import EmbeddingService
-            from app.core.config import settings as app_settings
 
-            embedding_svc = EmbeddingService(
-                qdrant_host=app_settings.QDRANT_HOST,
-                qdrant_port=app_settings.QDRANT_PORT,
-                collection_name=app_settings.QDRANT_COLLECTION_NAME,
-                model_name=app_settings.EMBEDDING_MODEL_NAME,
-            )
+            embedding_svc = EmbeddingService()
             embedding_svc.delete_by_document(str(doc_id))
         except Exception:
             pass  # Don't fail the deletion if vector cleanup fails
