@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # Vector DB
     QDRANT_HOST: str = "qdrant"
-    QDRANT_PORT: int = 6333
+    QDRANT_PORT: int | str = 6333
     QDRANT_URL: str | None = None
     QDRANT_API_KEY: str | None = None
     QDRANT_COLLECTION_NAME: str = "aibos_documents"
@@ -41,6 +41,13 @@ class Settings(BaseSettings):
 
     # CORS
     ALLOWED_ORIGINS: str | list[str] = ["http://localhost:3000"]
+
+    @field_validator("QDRANT_PORT", mode="before")
+    @classmethod
+    def fix_qdrant_port(cls, v: object) -> int:
+        if v is None:
+            return 6333
+        return int(str(v).strip())
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
