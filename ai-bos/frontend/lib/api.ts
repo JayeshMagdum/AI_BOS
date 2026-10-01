@@ -6,7 +6,22 @@
  * on every authenticated request.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!envUrl) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+      return "https://ai-bos-backend-x11s.onrender.com/api/v1";
+    }
+    return "http://localhost:8000/api/v1";
+  }
+  // Auto-rewrite mistyped or default URL missing -x11s
+  if (envUrl.includes("ai-bos-backend.onrender.com")) {
+    return envUrl.replace("ai-bos-backend.onrender.com", "ai-bos-backend-x11s.onrender.com");
+  }
+  return envUrl;
+}
+
+const API_BASE = getApiBaseUrl();
 
 // ── Token helpers ─────────────────────────────────────────
 
@@ -66,11 +81,22 @@ export async function apiFetch<T = unknown>(
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    const isTypeError = err instanceof TypeError || (err instanceof Error && err.message.includes("fetch"));
+    throw new ApiError(
+      0,
+      isTypeError
+        ? `Unable to connect to ${API_BASE}. If Render free tier was sleeping, it takes ~50s to wake up. Please wait a moment and try again.`
+        : (err instanceof Error ? err.message : "Network request failed")
+    );
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({ detail: "Something went wrong." }));
