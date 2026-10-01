@@ -3,8 +3,7 @@
 import React, { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  Sparkles,
+  MessageSquare,
   Send,
   Bot,
   User as UserIcon,
@@ -14,10 +13,10 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  MessageSquare,
   ChevronRight,
   FileDown,
   Filter,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
@@ -284,9 +283,9 @@ function ChatInner() {
       </div>
 
       {/* ── Chat Container (Sidebar + Chat Area) ───────────── */}
-      <div className="flex flex-1 rounded-2xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden shadow-sm">
+      <div className="flex flex-1 rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 backdrop-blur-2xl overflow-hidden shadow-ios dark:shadow-ios-dark">
         {/* Thread Sidebar (desktop & tablet) */}
-        <div className="w-72 border-r border-border bg-muted/20 flex flex-col shrink-0 hidden md:flex">
+        <div className="w-72 border-r border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 flex flex-col shrink-0 hidden md:flex">
           <div className="p-3 border-b border-border flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Conversations
@@ -315,10 +314,10 @@ function ChatInner() {
                   <div
                     key={conv.id}
                     onClick={() => setActiveConvId(conv.id)}
-                    className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs cursor-pointer transition-colors ${
+                    className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs cursor-pointer transition-all duration-300 ease-ios-spring active:scale-95 ${
                       isActive
-                        ? "bg-primary/15 text-primary font-medium border border-primary/20"
-                        : "hover:bg-muted/50 text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "hover:bg-black/5 dark:hover:bg-white/10 text-foreground"
                     }`}
                   >
                     <div className="min-w-0 flex-1 pr-2">
@@ -347,7 +346,7 @@ function ChatInner() {
         {/* Chat Stream Main View */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Thread Header */}
-          <div className="px-5 py-2.5 border-b border-border/80 flex flex-wrap items-center justify-between gap-2 bg-card/40">
+          <div className="px-5 py-2.5 border-b border-black/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 bg-transparent backdrop-blur-sm">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
               <h2 className="text-sm font-semibold truncate text-foreground max-w-[180px] sm:max-w-xs">
@@ -423,14 +422,14 @@ function ChatInner() {
                     <Bot className="h-5 w-5" />
                   </div>
                   <div className="space-y-2">
-                    <div className="rounded-2xl rounded-tl-sm bg-secondary/50 border border-border/60 px-4 py-3 text-sm text-foreground">
+                    <div className="rounded-2xl rounded-tl-sm bg-white dark:bg-[#1C1C1E] border border-black/5 dark:border-white/5 shadow-sm px-4 py-3 text-sm text-foreground">
                       <p>
                         Hello{user?.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}!
                         I&apos;m your AI BOS business assistant. I can analyze your uploaded
                         documents, synthesize answers, and cite specific sources.
                       </p>
                       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        <Zap className="h-3.5 w-3.5 text-primary" />
                         <span>Powered by RAG — Gemini + Qdrant vector retrieval</span>
                       </div>
                     </div>
@@ -442,7 +441,7 @@ function ChatInner() {
                 <div className="pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <Zap className="h-3.5 w-3.5 text-primary" />
                       {hasDocuments ? "Suggested queries for your documents:" : "Suggested queries to get started:"}
                     </p>
                     {hasDocuments && (
@@ -468,7 +467,7 @@ function ChatInner() {
                           type="button"
                           onClick={() => handleSubmit(prompt)}
                           disabled={isLoading}
-                          className="group flex items-center justify-between rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-left text-xs text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-muted/40 hover:shadow-sm disabled:opacity-50"
+                          className="group flex items-center justify-between rounded-2xl border border-black/5 dark:border-white/5 bg-white/50 dark:bg-[#1C1C1E]/50 px-4 py-3 text-left text-xs text-foreground transition-all duration-300 ease-ios-spring active:scale-[0.98] hover:bg-white dark:hover:bg-[#1C1C1E] hover:shadow-sm disabled:opacity-50"
                         >
                           <span className="truncate mr-2 group-hover:text-primary transition-colors">{prompt}</span>
                           <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -497,10 +496,10 @@ function ChatInner() {
                     {/* Message content */}
                     <div className="space-y-2 min-w-0 flex-1">
                       <div
-                        className={`rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${
+                        className={`rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap shadow-sm ${
                           isUser
-                            ? "rounded-tl-sm bg-primary/10 border border-primary/20 text-foreground"
-                            : "rounded-tl-sm bg-secondary/50 border border-border/60 text-foreground"
+                            ? "rounded-tr-sm bg-primary text-primary-foreground"
+                            : "rounded-tl-sm bg-white dark:bg-[#1C1C1E] border border-black/5 dark:border-white/5 text-foreground"
                         }`}
                       >
                         {msg.content}
@@ -555,7 +554,7 @@ function ChatInner() {
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
                   <Bot className="h-5 w-5" />
                 </div>
-                <div className="rounded-2xl rounded-tl-sm bg-secondary/50 border border-border/60 px-4 py-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl rounded-tl-sm bg-white dark:bg-[#1C1C1E] border border-black/5 dark:border-white/5 shadow-sm px-4 py-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                     <span>Analyzing documents and generating answer...</span>
@@ -568,7 +567,7 @@ function ChatInner() {
           </div>
 
           {/* Chat Input Bar */}
-          <div className="border-t border-border bg-background/80 p-4 backdrop-blur-sm">
+          <div className="border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/30 p-4 backdrop-blur-xl">
             {selectedDocId !== "all" && (
               <div className="flex items-center justify-between px-1 mb-2.5 text-xs">
                 <div className="flex items-center gap-1.5 text-primary font-medium">
@@ -600,21 +599,18 @@ function ChatInner() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isLoading}
-                className="flex-1 rounded-xl border border-input bg-card/60 px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                className="flex-1 rounded-full border border-black/10 dark:border-white/10 bg-white/80 dark:bg-white/5 px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-all duration-300 shadow-inner"
               />
               <Button
                 type="submit"
-                size="sm"
-                className="rounded-xl px-4 h-10"
+                size="icon"
+                className="rounded-full h-10 w-10 shrink-0 shadow-sm"
                 disabled={isLoading || !input.trim()}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-1.5" />
-                    Ask
-                  </>
+                  <Send className="h-4 w-4 ml-0.5" />
                 )}
               </Button>
             </form>

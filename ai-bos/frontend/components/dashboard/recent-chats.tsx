@@ -5,7 +5,7 @@
  * Displays title, last message excerpt, sources count, and relative timestamp.
  */
 import Link from "next/link";
-import { MessageSquare, FileSearch, Sparkles } from "lucide-react";
+import { MessageSquare, FileSearch } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function RecentChats({ chats }: RecentChatsProps) {
       <CardContent className="px-0 pb-0">
         {chats.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
-            <Sparkles className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <MessageSquare className="h-8 w-8 text-muted-foreground/50 mb-2" />
             <p className="text-sm font-medium text-foreground">No recent conversations</p>
             <p className="text-xs text-muted-foreground mt-1 mb-4">
               Ask questions to explore your uploaded documents.

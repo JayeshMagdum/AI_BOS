@@ -10,7 +10,7 @@ import {
   AlertCircle,
   Loader2,
   Search,
-  Sparkles,
+  MessageSquare,
   RefreshCw,
   HardDrive,
   File,
@@ -239,7 +239,7 @@ export default function DocumentsPage() {
 
         {/* Quick stats pills */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
+          <div className="flex items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-xl shadow-sm">
             <FileText className="h-3.5 w-3.5 text-primary" />
             <span>
               <strong className="text-foreground">{documents.length}</strong> Document
@@ -247,7 +247,7 @@ export default function DocumentsPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
+          <div className="flex items-center gap-2 rounded-xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-xl shadow-sm">
             <HardDrive className="h-3.5 w-3.5 text-primary" />
             <span>
               <strong className="text-foreground">{formatBytes(totalBytes)}</strong> Used
@@ -276,10 +276,10 @@ export default function DocumentsPage() {
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
-        className={`relative overflow-hidden rounded-xl border-2 border-dashed transition-all duration-200 ${
+        className={`relative overflow-hidden rounded-3xl border-2 border-dashed transition-all duration-300 ease-ios-spring ${
           isDragging
-            ? "border-primary bg-primary/5 shadow-lg shadow-primary/5 scale-[0.99]"
-            : "border-border/80 bg-card/30 hover:border-primary/50 hover:bg-card/60"
+            ? "border-primary bg-primary/5 shadow-lg shadow-primary/5 scale-[0.98]"
+            : "border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/50 hover:border-primary/50 hover:bg-white/80 dark:hover:bg-white/5 backdrop-blur-md shadow-sm"
         } p-8 text-center`}
       >
         <input
@@ -386,9 +386,9 @@ export default function DocumentsPage() {
       )}
 
       {/* ── Documents Table Section ──────────────────────── */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark overflow-hidden">
         {/* Table header bar */}
-        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-black/5 dark:border-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-foreground">
               Uploaded Documents
@@ -406,7 +406,7 @@ export default function DocumentsPage() {
               placeholder="Search documents..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background/50 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-9 w-full rounded-full border border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/50 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300 shadow-inner"
             />
           </div>
         </div>
@@ -462,7 +462,7 @@ export default function DocumentsPage() {
                   <tr
                     key={doc.id}
                     id={`doc-row-${doc.id}`}
-                    className="transition-colors hover:bg-muted/20"
+                    className="transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                   >
                     {/* Document filename & icon */}
                     <td className="px-5 py-3.5">
@@ -560,7 +560,7 @@ export default function DocumentsPage() {
                           title="Ask AI about this document"
                         >
                           <Link href={`/chat?doc=${doc.id}`}>
-                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                            <MessageSquare className="h-3.5 w-3.5 mr-1" />
                             <span className="hidden lg:inline">Ask AI</span>
                           </Link>
                         </Button>
@@ -592,10 +592,10 @@ export default function DocumentsPage() {
 
       {/* ── Document Preview Modal ──────────────────────── */}
       {isPreviewOpen && previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
-          <div className="relative flex flex-col w-full max-w-3xl max-h-[85vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 dark:bg-black/40 backdrop-blur-xl animate-in fade-in-0 duration-300">
+          <div className="relative flex flex-col w-full max-w-3xl max-h-[85vh] rounded-3xl border border-white/20 dark:border-white/10 bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-3xl shadow-ios dark:shadow-ios-dark overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/20">
+            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 px-6 py-4 bg-transparent">
               <div className="flex items-center gap-3 min-w-0">
                 {getFileIcon(previewDoc.file_type)}
                 <div className="min-w-0">
@@ -754,7 +754,7 @@ export default function DocumentsPage() {
                 className="h-8 text-xs"
               >
                 <Link href={`/chat?doc=${previewDoc.id}`}>
-                  <Sparkles className="h-3.5 w-3.5 mr-1 text-primary" />
+                  <MessageSquare className="h-3.5 w-3.5 mr-1 text-primary" />
                   Chat with this Document
                 </Link>
               </Button>
