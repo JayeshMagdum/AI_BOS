@@ -2,7 +2,6 @@
 
 import { LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
 export function Topbar() {
@@ -29,8 +28,6 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-3">
-        <ThemeToggle />
-
         {user && (
           <div className="flex items-center gap-3 pl-2 border-l border-border">
             <div className="flex items-center gap-2.5">

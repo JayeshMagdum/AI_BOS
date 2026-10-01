@@ -19,6 +19,7 @@ from app.schemas.analytics import (
     FileTypeDistributionResponse,
     RecentUploadItem,
     StatsSummaryResponse,
+    OverviewResponse,
 )
 from app.services.analytics_service import AnalyticsService
 
@@ -81,3 +82,16 @@ def get_recent_uploads(
 ):
     user_id = uuid.UUID(user_id_str)
     return svc.get_recent_uploads(user_id, limit=limit)
+
+
+@router.get(
+    "/overview",
+    response_model=OverviewResponse,
+    summary="Get data-driven overview including insights and charts from documents",
+)
+def get_analytics_overview(
+    user_id_str: str = Depends(get_current_user_id),
+    svc: AnalyticsService = Depends(get_analytics_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    return svc.get_overview(user_id)

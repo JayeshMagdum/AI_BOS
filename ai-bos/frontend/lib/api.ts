@@ -348,6 +348,28 @@ export async function getRecentUploads(limit: number = 5): Promise<RecentUploadI
   return apiFetch<RecentUploadItem[]>(`/analytics/recent-uploads?limit=${limit}`, { auth: true });
 }
 
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+}
+
+export interface ChartDataset {
+  document_id: string;
+  document_name: string;
+  title: string;
+  chart_type: string; // 'bar', 'pie', 'line'
+  data: ChartDataPoint[];
+}
+
+export interface AnalyticsOverview {
+  insights: string[];
+  chart_datasets: ChartDataset[];
+}
+
+export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
+  return apiFetch<AnalyticsOverview>("/analytics/overview", { auth: true });
+}
+
 // ── Conversations API ──────────────────────────────────────
 
 export interface ConversationItem {

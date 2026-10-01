@@ -85,7 +85,7 @@ export default function HomePage() {
           </Link>
 
           {/* Navigation Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
+          <nav className="hidden md:flex items-center gap-8 text-base font-medium text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">
               Capabilities
             </a>
@@ -95,22 +95,19 @@ export default function HomePage() {
             <a href="#architecture" className="hover:text-foreground transition-colors">
               Architecture
             </a>
-            <a href="#security" className="hover:text-foreground transition-colors">
-              Security
-            </a>
           </nav>
 
           {/* Actions Right: Login (Ghost/Outline) + Sign up (Filled Primary) */}
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="default" asChild className="text-base">
               <Link href="/login" id="nav-btn-login">
                 Sign in
               </Link>
             </Button>
             <Button
               variant="default"
-              size="sm"
-              className="shadow-sm shadow-primary/25 font-medium px-4"
+              size="default"
+              className="shadow-sm shadow-primary/25 font-medium px-5 text-base"
               asChild
             >
               <Link href="/signup" id="nav-btn-signup">

@@ -14,6 +14,9 @@ from app.schemas.analytics import (
     FileTypeItem,
     RecentUploadItem,
     StatsSummaryResponse,
+    OverviewResponse,
+    ChartDataset,
+    ChartDataPoint,
 )
 
 # Semantic chart colors mapping to frontend theme
@@ -136,3 +139,88 @@ class AnalyticsService:
             )
             for doc in docs
         ]
+
+    def get_overview(self, user_id: uuid.UUID) -> OverviewResponse:
+        from app.models.analytics import ExtractedData, DocumentInsight
+        import json
+        from google import genai
+        from google.genai import types
+        from app.core.config import settings
+
+        db = self.repo.db
+        
+        # 1. Fetch all ExtractedData for user
+        extracted_rows = db.query(ExtractedData).filter(ExtractedData.user_id == user_id).all()
+        
+        if not extracted_rows:
+            return OverviewResponse(insights=[], chart_datasets=[])
+
+        # Group rows into chart datasets
+        grouped_data = {}
+        for row in extracted_rows:
+            key = (row.document_id, row.category_name, row.metric_name)
+            if key not in grouped_data:
+                # Need document name
+                doc_name = "Document"
+                if row.document:
+                    doc_name = row.document.filename
+                title = f"{row.metric_name} by {row.category_name}"
+                grouped_data[key] = ChartDataset(
+                    document_id=str(row.document_id),
+                    document_name=doc_name,
+                    title=title,
+                    chart_type=row.chart_type,
+                    data=[]
+                )
+            grouped_data[key].data.append(ChartDataPoint(name=row.category_value, value=row.metric_value))
+
+        chart_datasets = list(grouped_data.values())
+
+        # 2. Fetch or Generate AI Insights
+        insights_rows = db.query(DocumentInsight).filter(DocumentInsight.user_id == user_id).order_by(DocumentInsight.created_at.desc()).limit(4).all()
+        
+        insights = [row.insight_text for row in insights_rows]
+        
+        if not insights:
+            try:
+                client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                
+                # Make a small summary for the LLM
+                summary_data = []
+                for ds in chart_datasets[:5]: # limit to 5 datasets so prompt isn't huge
+                    summary_data.append({
+                        "doc": ds.document_name,
+                        "metric": ds.title,
+                        "top_data": [{"n": d.name, "v": d.value} for d in ds.data[:5]]
+                    })
+                    
+                prompt = f"""
+You are an expert business analyst. Look at the following aggregated data from a user's uploaded business documents:
+{json.dumps(summary_data, indent=2)}
+
+Generate 3 short, punchy, distinct business insights from this data. 
+Each insight must be a single short sentence. Do NOT use markdown. Do NOT use bullet points in the JSON.
+Return a JSON object with a single key "insights" containing an array of strings.
+Example: {{"insights": ["Costs grew 14% in NA.", "Product X accounts for most revenue."]}}
+"""
+                response = client.models.generate_content(
+                    model='gemini-3.8-flash',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
+                )
+                
+                result = json.loads(response.text)
+                insights = result.get("insights", [])[:4]
+                
+                # Save to DB
+                new_insights = [DocumentInsight(user_id=user_id, insight_text=ins) for ins in insights]
+                db.bulk_save_objects(new_insights)
+                db.commit()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to generate insights: {e}", exc_info=True)
+                insights = []
+
+        return OverviewResponse(insights=insights, chart_datasets=chart_datasets)

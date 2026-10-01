@@ -51,3 +51,21 @@ class RecentUploadItem(BaseModel):
     status: str
     uploaded_at: str
     uploaded_by: str = "You"
+
+
+class ChartDataPoint(BaseModel):
+    name: str
+    value: float
+
+
+class ChartDataset(BaseModel):
+    document_id: str
+    document_name: str
+    title: str
+    chart_type: str
+    data: list[ChartDataPoint]
+
+
+class OverviewResponse(BaseModel):
+    insights: list[str]
+    chart_datasets: list[ChartDataset]

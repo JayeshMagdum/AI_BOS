@@ -27,6 +27,7 @@ def sanitize_filename(filename: str) -> str:
 
 class DocumentService:
     def __init__(self, db: Session) -> None:
+        self.db = db
         self.repo = DocumentRepository(db)
         self.upload_dir = Path(settings.UPLOAD_DIR)
 
@@ -142,7 +143,18 @@ class DocumentService:
                         vectors_count, document.id, clean_name,
                     )
 
-                # Mark as completed after successful indexing
+                # Run Analytics Extraction
+                from app.services.analytics_extractor import AnalyticsExtractorService
+                AnalyticsExtractorService.extract_and_store(
+                    self.db,
+                    document.id,
+                    user_id,
+                    dest_path,
+                    ext,
+                    extracted_text
+                )
+
+                # Mark as completed after successful indexing and extraction
                 self.repo.update_status(document, status="completed")
 
             except Exception as e:
