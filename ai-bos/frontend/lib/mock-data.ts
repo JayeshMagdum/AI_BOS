@@ -1,4 +1,4 @@
-﻿/**
+/**
  * mock-data.ts
  *
  * Single source of truth for all mock dashboard data.
@@ -198,8 +198,8 @@ export interface ApiDocTypeBreakdown {
 }
 
 export const mockDocTypeBreakdown: ApiDocTypeBreakdown[] = [
-  { type: "PDF",  count: 112, fill: "hsl(222, 89%, 65%)"  },
-  { type: "XLSX", count: 68,  fill: "hsl(262, 80%, 65%)"  },
-  { type: "DOCX", count: 45,  fill: "hsl(172, 66%, 50%)"  },
-  { type: "CSV",  count: 23,  fill: "hsl(32,  95%, 58%)"  },
+  { type: "PDF",  count: 112, fill: "hsl(var(--primary) / 1)"  },
+  { type: "XLSX", count: 68,  fill: "hsl(var(--primary) / 0.8)"  },
+  { type: "DOCX", count: 45,  fill: "hsl(var(--primary) / 0.6)"  },
+  { type: "CSV",  count: 23,  fill: "hsl(var(--primary) / 0.4)"  },
 ];

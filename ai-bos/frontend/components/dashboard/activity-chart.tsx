@@ -1,4 +1,4 @@
-﻿/**
+/**
  * activity-chart.tsx
  *
  * Recharts ResponsiveContainer + AreaChart showing AI queries and document
@@ -70,12 +70,12 @@ export function ActivityChart({ data }: ActivityChartProps) {
           <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="gradQueries" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="hsl(222,89%,65%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(222,89%,65%)" stopOpacity={0}   />
+                <stop offset="5%"  stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}   />
               </linearGradient>
               <linearGradient id="gradUploads" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="hsl(172,66%,50%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(172,66%,50%)" stopOpacity={0}   />
+                <stop offset="5%"  stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0}   />
               </linearGradient>
             </defs>
 
@@ -102,7 +102,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
               type="monotone"
               dataKey="queries"
               name="Queries"
-              stroke="hsl(222,89%,65%)"
+              stroke="hsl(var(--primary))"
               strokeWidth={2}
               fill="url(#gradQueries)"
               dot={false}
@@ -112,7 +112,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
               type="monotone"
               dataKey="uploads"
               name="Uploads"
-              stroke="hsl(172,66%,50%)"
+              stroke="hsl(var(--muted-foreground))"
               strokeWidth={2}
               fill="url(#gradUploads)"
               dot={false}
@@ -124,11 +124,11 @@ export function ActivityChart({ data }: ActivityChartProps) {
         {/* Legend */}
         <div className="mt-3 flex items-center gap-5">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[hsl(222,89%,65%)]" />
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
             AI Queries
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[hsl(172,66%,50%)]" />
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-muted-foreground" />
             Uploads
           </div>
         </div>

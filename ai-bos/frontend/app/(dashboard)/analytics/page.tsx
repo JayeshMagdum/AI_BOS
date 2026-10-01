@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { BarChart3, TrendingUp, Sparkles, FileText, ArrowUpRight, HardDrive } from "lucide-react";
+import { BarChart3, TrendingUp, MessageSquare, FileText, ArrowUpRight, HardDrive } from "lucide-react";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { DocTypeChart } from "@/components/dashboard/doc-type-chart";
 import {
@@ -48,10 +48,10 @@ export default function AnalyticsPage() {
 
         if (fileTypesRes.status === "fulfilled") {
           setDocBreakdown(
-            fileTypesRes.value.items.map((item) => ({
+            fileTypesRes.value.items.map((item, i) => ({
               type: item.type,
               count: item.count,
-              fill: item.fill || "#6366f1",
+              fill: `hsl(var(--primary) / ${1 - i * 0.2})`,
             }))
           );
         }
@@ -85,10 +85,10 @@ export default function AnalyticsPage() {
 
       {/* ── Stat Metric Cards ─────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 p-5 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">AI Queries</span>
-            <Sparkles className="h-4 w-4 text-primary" />
+            <MessageSquare className="h-4 w-4 text-primary" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight">
@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
           <p className="mt-1 text-xs text-muted-foreground">RAG vector similarity lookups</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 p-5 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">Indexed Documents</span>
             <FileText className="h-4 w-4 text-primary" />
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
           <p className="mt-1 text-xs text-muted-foreground">Across PDF, Word & Sheets</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 p-5 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">Storage Consumed</span>
             <HardDrive className="h-4 w-4 text-primary" />
@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
           <p className="mt-1 text-xs text-muted-foreground">Raw files + Qdrant vectors</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 p-5 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">Grounding Score</span>
             <BarChart3 className="h-4 w-4 text-primary" />
