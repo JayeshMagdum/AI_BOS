@@ -59,7 +59,7 @@ export default function SignupPage() {
     <div className="w-full max-w-md">
       {/* ── Brand ─────────────────────────────────── */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary mb-4 shadow-lg shadow-primary/20">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary mb-4 shadow-md shadow-primary/30">
           <Layers className="h-6 w-6 text-primary-foreground" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight">AI BOS</h1>
@@ -69,16 +69,16 @@ export default function SignupPage() {
       </div>
 
       {/* ── Card ──────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-xl shadow-black/5 p-8">
+      <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-black/60 backdrop-blur-2xl shadow-ios dark:shadow-ios-dark p-8">
         {/* Switcher header */}
-        <div className="flex rounded-lg bg-muted p-1 mb-7">
+        <div className="flex rounded-xl bg-black/5 dark:bg-white/10 p-1 mb-7 backdrop-blur-md">
           <Link
             href="/login"
-            className="flex-1 text-center rounded-md py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-200"
+            className="flex-1 text-center rounded-lg py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 ease-ios-spring"
           >
             Sign in
           </Link>
-          <div className="flex-1 text-center rounded-md py-1.5 text-sm font-medium bg-background text-foreground shadow-sm">
+          <div className="flex-1 text-center rounded-lg py-1.5 text-sm font-medium bg-background text-foreground shadow-sm transition-all duration-300 ease-ios-spring">
             Create account
           </div>
         </div>
@@ -199,4 +199,4 @@ export default function SignupPage() {
 }
 
 const inputCls =
-  "w-full rounded-lg border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors";
+  "w-full rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm shadow-inner px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300";

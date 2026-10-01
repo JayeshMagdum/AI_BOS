@@ -1,56 +1,59 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --primary: 222 89% 55%;
+    /* iOS Light Mode */
+    --background: 240 5% 96%; /* System Gray 6 */
+    --foreground: 0 0% 0%;
+    --primary: 211 100% 50%; /* System Blue */
     --primary-foreground: 0 0% 100%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --border: 214 32% 91%;
+    --muted: 240 5% 90%; /* System Gray 5 */
+    --muted-foreground: 240 4% 46%; /* System Gray */
+    --border: 240 5% 84%; /* Separator */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --sidebar: 240 5% 96%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-accent: 240 5% 90%;
+
     --radius: 0.75rem;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-
-    --sidebar: 210 40% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-accent: 214 32% 91%;
-
     /* Semantic status tokens */
-    --success: 142 71% 45%;
+    --success: 135 59% 49%; /* System Green */
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 35 100% 50%; /* System Orange */
     --warning-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 100% 50%; /* System Red */
     --destructive-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --primary: 222 89% 65%;
-    --primary-foreground: 222 47% 6%;
-    --muted: 217 33% 14%;
-    --muted-foreground: 215 20% 65%;
-    --border: 217 33% 18%;
+    /* iOS Dark Mode */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --primary: 210 100% 52%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 240 4% 17%;
+    --muted-foreground: 240 5% 65%;
+    --border: 240 4% 22%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 4% 11%;
+    --card-foreground: 0 0% 100%;
 
-    --sidebar: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 217 33% 16%;
+    --sidebar: 240 4% 11%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 240 4% 17%;
 
     /* Semantic status tokens — dark */
-    --success: 142 71% 40%;
+    --success: 135 65% 53%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 45%;
+    --warning: 35 100% 56%;
     --warning-foreground: 0 0% 100%;
-    --destructive: 0 84% 55%;
+    --destructive: 0 100% 60%;
     --destructive-foreground: 0 0% 100%;
   }
 
@@ -63,3 +66,4 @@
     color: hsl(var(--foreground));
   }
 }
+
