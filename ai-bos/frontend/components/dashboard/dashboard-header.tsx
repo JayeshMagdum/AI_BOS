@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload, Sparkles } from "lucide-react";
+import { Upload, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
@@ -26,9 +26,9 @@ export function DashboardHeader() {
             Upload
           </Link>
         </Button>
-        <Button size="sm" asChild>
+        <Button size="sm" asChild className="rounded-full shadow-sm transition-all duration-300 ease-ios-spring active:scale-95">
           <Link href="/chat">
-            <Sparkles className="h-4 w-4 mr-1.5" />
+            <MessageSquare className="h-4 w-4 mr-1.5" />
             Ask AI
           </Link>
         </Button>

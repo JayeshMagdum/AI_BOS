@@ -103,10 +103,10 @@ export default function DashboardPage() {
 
         if (fileTypesRes.status === "fulfilled") {
           setDocBreakdown(
-            fileTypesRes.value.items.map((item) => ({
+            fileTypesRes.value.items.map((item, i) => ({
               type: item.type,
               count: item.count,
-              fill: item.fill || "#6366f1",
+              fill: `hsl(var(--primary) / ${1 - i * 0.2})`,
             }))
           );
         }

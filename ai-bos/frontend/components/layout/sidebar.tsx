@@ -17,7 +17,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar md:flex md:flex-col">
+    <aside className="hidden w-64 shrink-0 border-r border-border/50 bg-sidebar/50 backdrop-blur-3xl md:flex md:flex-col">
       <div className="flex h-16 items-center px-6">
         <span className="text-lg font-semibold text-sidebar-foreground">AI BOS</span>
       </div>
@@ -32,8 +32,8 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                isActive && "bg-sidebar-accent text-sidebar-foreground"
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all duration-300 ease-ios-spring hover:bg-sidebar-accent/50 hover:text-sidebar-foreground active:scale-95",
+                isActive && "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
