@@ -103,6 +103,9 @@ class EmbeddingService:
         """Create the Qdrant collection if it doesn't exist."""
         from qdrant_client.models import Distance, VectorParams
 
+        if self._qdrant_client is None:
+            return  # It will be ensured when client is accessed
+
         collections = [c.name for c in self._qdrant_client.get_collections().collections]
         
         # We need to recreate if existing config doesn't match Gemini's dimension (768 vs old 384)
@@ -144,12 +147,36 @@ class EmbeddingService:
             response = None
             last_err = None
             
-            for m in [self.model_name, "text-embedding-004", "models/embedding-001", "embedding-001"]:
+            for m in [
+                self.model_name, 
+                "gemini-embedding-2",
+                "models/gemini-embedding-2",
+                "text-embedding-005",
+                "text-embedding-004", 
+                "gemini-embedding-001",
+                "models/embedding-001", 
+                "embedding-001"
+            ]:
                 try:
-                    response = client.models.embed_content(
-                        model=m,
-                        contents=batch_texts
-                    )
+                    # Pass output_dimensionality if supported by the kwargs
+                    try:
+                        response = client.models.embed_content(
+                            model=m,
+                            contents=batch_texts,
+                            config={"output_dimensionality": 768}
+                        )
+                    except Exception:
+                        response = client.models.embed_content(
+                            model=m,
+                            contents=batch_texts
+                        )
+                        
+                    # If this is the first successful call and we don't know vector_size yet
+                    if self._vector_size is None or self._vector_size == 768:
+                        if response and response.embeddings:
+                            self._vector_size = len(response.embeddings[0].values)
+                            logger.info(f"Model {m} succeeded! Set vector dimension to {self._vector_size}")
+                            self._ensure_collection() # Ensure collection matches the correct dimension now
                     break
                 except Exception as e:
                     last_err = e
