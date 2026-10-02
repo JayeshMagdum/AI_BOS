@@ -8,10 +8,11 @@ import re
 import uuid
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, UploadFile, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.models.document import Document
 from app.repositories.document_repo import DocumentRepository
 
@@ -31,7 +32,7 @@ class DocumentService:
         self.repo = DocumentRepository(db)
         self.upload_dir = Path(settings.UPLOAD_DIR)
 
-    async def upload(self, *, user_id: uuid.UUID, file: UploadFile) -> Document:
+    async def upload(self, *, user_id: uuid.UUID, file: UploadFile, background_tasks: BackgroundTasks) -> Document:
         if not file.filename:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -74,100 +75,113 @@ class DocumentService:
                     )
                 buffer.write(chunk)
 
-        # Perform text extraction on uploaded document
-        extraction_status = "completed"
-        error_msg = None
-        extracted_text = ""
-        try:
-            from app.services.text_extraction_service import TextExtractionService
-            extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
-            extracted_text = extraction_result.text or ""
-            if not extracted_text.strip():
-                extraction_status = "completed"
-        except Exception as e:
-            extraction_status = "failed"
-            error_msg = f"Extraction error: {str(e)[:400]}"
-
-        # Persist document metadata in DB
+        # Persist document metadata in DB initially
         document = self.repo.create(
             user_id=user_id,
             filename=clean_name,
             file_path=str(dest_path),
             file_size=total_size,
             file_type=ext,
-            status="processing" if extracted_text.strip() else extraction_status,
+            status="processing",
         )
-        if error_msg:
-            self.repo.update_status(document, status=extraction_status, error_message=error_msg)
 
-        # Chunk extracted text and embed into Qdrant vector store
-        if extracted_text.strip() and extraction_status != "failed":
+        background_tasks.add_task(
+            self._process_document_background,
+            document_id=document.id,
+            user_id=user_id,
+            dest_path=dest_path,
+            ext=ext,
+            clean_name=clean_name
+        )
+
+        return document
+
+    def _process_document_background(self, document_id: uuid.UUID, user_id: uuid.UUID, dest_path: Path, ext: str, clean_name: str):
+        db = SessionLocal()
+        try:
+            repo = DocumentRepository(db)
+            document = repo.get_by_id(document_id, user_id)
+            if not document:
+                return
+
+            # Perform text extraction
+            extraction_status = "completed"
+            error_msg = None
+            extracted_text = ""
             try:
-                from app.services.chunking_service import chunk_text
-                from app.services.embedding_service import EmbeddingService
-                from app.core.config import settings as app_settings
+                from app.services.text_extraction_service import TextExtractionService
+                extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
+                extracted_text = extraction_result.text or ""
+                if not extracted_text.strip():
+                    extraction_status = "completed"
+            except Exception as e:
+                extraction_status = "failed"
+                error_msg = f"Extraction error: {str(e)[:400]}"
 
-                # Chunk the text
-                chunks = chunk_text(
-                    text=extracted_text,
-                    chunk_size=512,
-                    chunk_overlap=64,
-                    document_id=str(document.id),
-                    filename=clean_name,
-                )
+            if error_msg:
+                repo.update_status(document, status=extraction_status, error_message=error_msg)
 
-                if chunks:
-                    # Convert TextChunk objects to dicts for embedding service
-                    chunk_dicts = [
-                        {
-                            "text": c.text,
-                            "chunk_index": c.chunk_index,
-                            "word_count": c.word_count,
-                        }
-                        for c in chunks
-                    ]
+            # Chunk extracted text and embed into Qdrant vector store
+            if extracted_text.strip() and extraction_status != "failed":
+                try:
+                    from app.services.chunking_service import chunk_text
+                    from app.services.embedding_service import EmbeddingService
 
-                    # Embed and upsert into Qdrant
-                    embedding_svc = EmbeddingService()
-                    vectors_count = embedding_svc.upsert_chunks(
-                        chunks=chunk_dicts,
+                    # Chunk the text
+                    chunks = chunk_text(
+                        text=extracted_text,
+                        chunk_size=512,
+                        chunk_overlap=64,
                         document_id=str(document.id),
-                        user_id=str(user_id),
                         filename=clean_name,
                     )
 
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.info(
-                        "Indexed %d vectors for document %s (%s)",
-                        vectors_count, document.id, clean_name,
+                    if chunks:
+                        chunk_dicts = [
+                            {
+                                "text": c.text,
+                                "chunk_index": c.chunk_index,
+                                "word_count": c.word_count,
+                            }
+                            for c in chunks
+                        ]
+
+                        embedding_svc = EmbeddingService()
+                        vectors_count = embedding_svc.upsert_chunks(
+                            chunks=chunk_dicts,
+                            document_id=str(document.id),
+                            user_id=str(user_id),
+                            filename=clean_name,
+                        )
+
+                    # Run Analytics Extraction
+                    from app.services.analytics_extractor import AnalyticsExtractorService
+                    AnalyticsExtractorService.extract_and_store(
+                        db,
+                        document.id,
+                        user_id,
+                        dest_path,
+                        ext,
+                        extracted_text
                     )
 
-                # Run Analytics Extraction
-                from app.services.analytics_extractor import AnalyticsExtractorService
-                AnalyticsExtractorService.extract_and_store(
-                    self.db,
-                    document.id,
-                    user_id,
-                    dest_path,
-                    ext,
-                    extracted_text
-                )
+                    repo.update_status(document, status="completed")
 
-                # Mark as completed after successful indexing and extraction
-                self.repo.update_status(document, status="completed")
-
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error("Embedding pipeline error for doc %s: %s", document.id, str(e), exc_info=True)
-                self.repo.update_status(
-                    document,
-                    status="failed",
-                    error_message=f"Embedding error: {str(e)[:400]}",
-                )
-
-        return document
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error("Embedding pipeline error for doc %s: %s", document.id, str(e), exc_info=True)
+                    repo.update_status(
+                        document,
+                        status="failed",
+                        error_message=f"Processing error: {str(e)[:400]}",
+                    )
+            
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
 
     def extract_text(self, doc_id: uuid.UUID, user_id: uuid.UUID):
         doc = self.get_document(doc_id, user_id)

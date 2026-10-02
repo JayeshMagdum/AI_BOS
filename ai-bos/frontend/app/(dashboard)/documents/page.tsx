@@ -156,6 +156,18 @@ export default function DocumentsPage() {
     fetchDocs();
   }, [fetchDocs]);
 
+  // Poll for processing documents
+  useEffect(() => {
+    const hasProcessing = documents.some((doc) => doc.status === "processing" || doc.status === "pending");
+    if (!hasProcessing) return;
+
+    const intervalId = setInterval(() => {
+      fetchDocs();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [documents, fetchDocs]);
+
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
     setUploadError(null);

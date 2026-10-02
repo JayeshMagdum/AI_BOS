@@ -39,6 +39,8 @@ def get_document_service(db: Session = Depends(get_db)) -> DocumentService:
     return DocumentService(db)
 
 
+from fastapi import APIRouter, Depends, File, UploadFile, status, BackgroundTasks
+
 @router.post(
     "/upload",
     response_model=DocumentResponse,
@@ -46,12 +48,13 @@ def get_document_service(db: Session = Depends(get_db)) -> DocumentService:
     summary="Upload a business document",
 )
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user_id_str: str = Depends(get_current_user_id),
     svc: DocumentService = Depends(get_document_service),
 ):
     user_id = uuid.UUID(user_id_str)
-    return await svc.upload(user_id=user_id, file=file)
+    return await svc.upload(user_id=user_id, file=file, background_tasks=background_tasks)
 
 
 @router.get(

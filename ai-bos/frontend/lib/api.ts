@@ -166,11 +166,22 @@ export async function uploadDocument(file: File): Promise<DocumentItem> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/documents/upload`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/documents/upload`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+  } catch (err) {
+    const isTypeError = err instanceof TypeError || (err instanceof Error && err.message.includes("fetch"));
+    throw new ApiError(
+      504,
+      isTypeError
+        ? `Upload timed out or server is unreachable. Please try again.`
+        : (err instanceof Error ? err.message : "Network request failed")
+    );
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({ detail: "Upload failed" }));
