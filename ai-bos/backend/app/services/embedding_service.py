@@ -144,8 +144,7 @@ class EmbeddingService:
         batch_size = 100
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
-            response = None
-            last_err = None
+            errors = []
             
             for m in [
                 self.model_name, 
@@ -179,11 +178,11 @@ class EmbeddingService:
                             self._ensure_collection() # Ensure collection matches the correct dimension now
                     break
                 except Exception as e:
-                    last_err = e
+                    errors.append(f"{m}: {e}")
                     continue
                     
             if not response:
-                raise Exception(f"All embedding models failed. Last error: {last_err}")
+                raise Exception(f"All embedding models failed. Errors: {' | '.join(errors)}")
                 
             # embeddings property is a list of Embedding objects
             embeddings.extend([emb.values for emb in response.embeddings])
