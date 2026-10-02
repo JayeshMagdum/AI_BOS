@@ -14,12 +14,46 @@ from app.core.logging import setup_logging
 setup_logging()
 logger = logging.getLogger("aibos.api")
 
+from contextlib import asynccontextmanager
+from app.db.session import SessionLocal
+from app.models.document import Document
+from sqlalchemy import update
+from datetime import datetime, timezone, timedelta
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Running startup tasks: checking for stuck documents...")
+    db = SessionLocal()
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+        stmt = (
+            update(Document)
+            .where(Document.status.in_(["processing", "pending"]))
+            .where(Document.updated_at < cutoff)
+            .values(
+                status="failed", 
+                error_message="Processing timed out or crashed due to server restart.",
+                updated_at=datetime.now(timezone.utc)
+            )
+        )
+        res = db.execute(stmt)
+        db.commit()
+        if res.rowcount > 0:
+            logger.warning(f"Marked {res.rowcount} stuck documents as failed.")
+    except Exception as e:
+        logger.error(f"Startup clean-up failed: {e}")
+    finally:
+        db.close()
+    
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

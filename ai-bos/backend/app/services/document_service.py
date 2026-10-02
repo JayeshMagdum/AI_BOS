@@ -97,91 +97,155 @@ class DocumentService:
         return document
 
     def _process_document_background(self, document_id: uuid.UUID, user_id: uuid.UUID, dest_path: Path, ext: str, clean_name: str):
-        db = SessionLocal()
-        try:
-            repo = DocumentRepository(db)
-            document = repo.get_by_id(document_id, user_id)
-            if not document:
-                return
+        import concurrent.futures
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
 
-            # Perform text extraction
-            extraction_status = "completed"
-            error_msg = None
-            extracted_text = ""
+        def _do_work():
+            db = SessionLocal()
             try:
-                from app.services.text_extraction_service import TextExtractionService
-                extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
-                extracted_text = extraction_result.text or ""
-                if not extracted_text.strip():
-                    extraction_status = "completed"
-            except Exception as e:
-                extraction_status = "failed"
-                error_msg = f"Extraction error: {str(e)[:400]}"
+                repo = DocumentRepository(db)
+                document = repo.get_by_id(document_id, user_id)
+                if not document:
+                    return
 
-            if error_msg:
-                repo.update_status(document, status=extraction_status, error_message=error_msg)
-
-            # Chunk extracted text and embed into Qdrant vector store
-            if extracted_text.strip() and extraction_status != "failed":
+                # Perform text extraction
+                extraction_status = "completed"
+                error_msg = None
+                extracted_text = ""
                 try:
-                    from app.services.chunking_service import chunk_text
-                    from app.services.embedding_service import EmbeddingService
+                    from app.services.text_extraction_service import TextExtractionService
+                    extraction_result = TextExtractionService.extract_from_file(dest_path, ext)
+                    extracted_text = extraction_result.text or ""
+                    if not extracted_text.strip():
+                        extraction_status = "completed"
+                except Exception as e:
+                    extraction_status = "failed"
+                    error_msg = f"Extraction error: {str(e)[:400]}"
 
-                    # Chunk the text
-                    chunks = chunk_text(
-                        text=extracted_text,
-                        chunk_size=512,
-                        chunk_overlap=64,
-                        document_id=str(document.id),
-                        filename=clean_name,
-                    )
+                if error_msg:
+                    repo.update_status(document, status=extraction_status, error_message=error_msg)
+                    return
 
-                    if chunks:
-                        chunk_dicts = [
-                            {
-                                "text": c.text,
-                                "chunk_index": c.chunk_index,
-                                "word_count": c.word_count,
-                            }
-                            for c in chunks
-                        ]
+                # Chunk extracted text and embed into Qdrant vector store
+                if extracted_text.strip() and extraction_status != "failed":
+                    try:
+                        from app.services.chunking_service import chunk_text
+                        from app.services.embedding_service import EmbeddingService
 
-                        embedding_svc = EmbeddingService()
-                        vectors_count = embedding_svc.upsert_chunks(
-                            chunks=chunk_dicts,
+                        # Chunk the text
+                        chunks = chunk_text(
+                            text=extracted_text,
+                            chunk_size=512,
+                            chunk_overlap=64,
                             document_id=str(document.id),
-                            user_id=str(user_id),
                             filename=clean_name,
                         )
 
-                    # Run Analytics Extraction
-                    from app.services.analytics_extractor import AnalyticsExtractorService
-                    AnalyticsExtractorService.extract_and_store(
-                        db,
-                        document.id,
-                        user_id,
-                        dest_path,
-                        ext,
-                        extracted_text
-                    )
+                        if chunks:
+                            chunk_dicts = [
+                                {
+                                    "text": c.text,
+                                    "chunk_index": c.chunk_index,
+                                    "word_count": c.word_count,
+                                }
+                                for c in chunks
+                            ]
 
-                    repo.update_status(document, status="completed")
+                            embedding_svc = EmbeddingService()
+                            vectors_count = embedding_svc.upsert_chunks(
+                                chunks=chunk_dicts,
+                                document_id=str(document.id),
+                                user_id=str(user_id),
+                                filename=clean_name,
+                            )
 
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error("Embedding pipeline error for doc %s: %s", document.id, str(e), exc_info=True)
-                    repo.update_status(
-                        document,
-                        status="failed",
-                        error_message=f"Processing error: {str(e)[:400]}",
-                    )
+                        # Run Analytics Extraction
+                        from app.services.analytics_extractor import AnalyticsExtractorService
+                        AnalyticsExtractorService.extract_and_store(
+                            db,
+                            document.id,
+                            user_id,
+                            dest_path,
+                            ext,
+                            extracted_text
+                        )
+
+                        repo.update_status(document, status="completed")
+
+                    except Exception as e:
+                        logger.error("Pipeline error for doc %s: %s\n%s", document.id, e, traceback.format_exc())
+                        repo.update_status(
+                            document,
+                            status="failed",
+                            error_message=f"Processing error: {str(e)[:400]}",
+                        )
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error("Unhandled error in background task: %s\n%s", e, traceback.format_exc())
+                try:
+                    repo = DocumentRepository(db)
+                    doc = repo.get_by_id(document_id, user_id)
+                    if doc:
+                        repo.update_status(doc, status="failed", error_message=f"Unhandled error: {str(e)[:200]}")
+                except:
+                    pass
+            finally:
+                db.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_do_work)
+            try:
+                future.result(timeout=90)
+            except concurrent.futures.TimeoutError:
+                logger.error("Background task timed out for document %s after 90 seconds", document_id)
+                db = SessionLocal()
+                try:
+                    repo = DocumentRepository(db)
+                    doc = repo.get_by_id(document_id, user_id)
+                    if doc:
+                        repo.update_status(doc, status="failed", error_message="Processing timed out after 90 seconds.")
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error("Background task crashed for document %s: %s\n%s", document_id, e, traceback.format_exc())
+                db = SessionLocal()
+                try:
+                    repo = DocumentRepository(db)
+                    doc = repo.get_by_id(document_id, user_id)
+                    if doc:
+                        repo.update_status(doc, status="failed", error_message=f"Task crashed: {str(e)[:200]}")
+                finally:
+                    db.close()
+
+    def retry_document(self, doc_id: uuid.UUID, user_id: uuid.UUID, background_tasks: BackgroundTasks) -> Document:
+        from fastapi import BackgroundTasks
+        document = self.repo.get_by_id(doc_id, user_id)
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
+        if document.status not in ("failed", "pending"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot retry document in status: {document.status}",
+            )
             
-            db.commit()
-        except Exception:
-            db.rollback()
-        finally:
-            db.close()
+        self.repo.update_status(document, status="processing", error_message=None)
+        dest_path = Path(document.file_path)
+        
+        background_tasks.add_task(
+            self._process_document_background,
+            document_id=document.id,
+            user_id=user_id,
+            dest_path=dest_path,
+            ext=document.file_type,
+            clean_name=document.filename
+        )
+        return document
 
     def extract_text(self, doc_id: uuid.UUID, user_id: uuid.UUID):
         doc = self.get_document(doc_id, user_id)

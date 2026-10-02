@@ -57,6 +57,20 @@ async def upload_document(
     return await svc.upload(user_id=user_id, file=file, background_tasks=background_tasks)
 
 
+@router.post(
+    "/{doc_id}/retry",
+    response_model=DocumentResponse,
+    summary="Retry a failed document upload",
+)
+def retry_document(
+    doc_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    user_id_str: str = Depends(get_current_user_id),
+    svc: DocumentService = Depends(get_document_service),
+):
+    user_id = uuid.UUID(user_id_str)
+    return svc.retry_document(doc_id=doc_id, user_id=user_id, background_tasks=background_tasks)
+
 @router.get(
     "",
     response_model=list[DocumentResponse],

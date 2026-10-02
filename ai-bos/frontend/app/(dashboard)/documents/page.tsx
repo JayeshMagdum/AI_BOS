@@ -29,6 +29,7 @@ import {
   getDocuments,
   uploadDocument,
   deleteDocument,
+  retryDocument,
   getDocumentPreview,
   getDocumentDownloadUrl,
   downloadDocumentFile,
@@ -105,6 +106,7 @@ export default function DocumentsPage() {
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<"text" | "chunks">("text");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [copiedPreview, setCopiedPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +134,20 @@ export default function DocumentsPage() {
       setUploadError(msg);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleRetry = async (docId: string) => {
+    try {
+      setRetryingId(docId);
+      await retryDocument(docId);
+      setUploadSuccess("Document is queued for retry.");
+      fetchDocs();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.detail : "Failed to retry document processing";
+      setUploadError(msg);
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -516,7 +532,10 @@ export default function DocumentsPage() {
                           Processing
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-400 border border-rose-500/20">
+                        <span 
+                          className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-400 border border-rose-500/20"
+                          title={doc.error_message || "Processing failed"}
+                        >
                           <AlertCircle className="h-3 w-3" />
                           Failed
                         </span>
@@ -531,6 +550,25 @@ export default function DocumentsPage() {
                     {/* Actions */}
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {doc.status === "failed" && (
+                          <Button
+                            id={`btn-retry-doc-${doc.id}`}
+                            variant="ghost"
+                            size="sm"
+                            disabled={retryingId === doc.id}
+                            onClick={() => handleRetry(doc.id)}
+                            className="h-8 text-xs text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                            title="Retry processing"
+                          >
+                            {retryingId === doc.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            )}
+                            <span className="ml-1 hidden md:inline">Retry</span>
+                          </Button>
+                        )}
+
                         <Button
                           id={`btn-preview-doc-${doc.id}`}
                           variant="ghost"

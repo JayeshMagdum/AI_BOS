@@ -204,10 +204,9 @@ class ChatService:
         # Step 4: Generate answer with Gemini via new google-genai SDK
         # Use verified available models with automatic retry on temporary 503 demand spikes
         candidate_models = list(dict.fromkeys([
-            getattr(settings, "GEMINI_MODEL", "gemini-flash-latest"),
-            "gemini-flash-latest",
-            "gemini-3-flash-preview",
-            "gemini-2.5-pro",
+            getattr(settings, "GEMINI_MODEL", "gemini-1.5-flash"),
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
         ]))
 
         answer = ""

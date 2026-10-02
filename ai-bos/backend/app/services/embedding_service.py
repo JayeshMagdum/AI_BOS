@@ -65,11 +65,12 @@ class EmbeddingService:
     @property
     def model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-            logger.info("Loading embedding model: %s", self.model_name)
-            self._model = SentenceTransformer(self.model_name)
-            self._vector_size = self._model.get_sentence_embedding_dimension()
-            logger.info("Model loaded. Vector dimension: %d", self._vector_size)
+            from google import genai
+            from app.core.config import settings
+            logger.info("Initializing Gemini embedding client")
+            self._model = genai.Client(api_key=settings.GEMINI_API_KEY)
+            self._vector_size = 768  # text-embedding-004 outputs 768-d vectors
+            logger.info("Gemini client initialized. Vector dimension: %d", self._vector_size)
         return self._model
 
     @property
@@ -103,7 +104,18 @@ class EmbeddingService:
         from qdrant_client.models import Distance, VectorParams
 
         collections = [c.name for c in self._qdrant_client.get_collections().collections]
-        if self.collection_name not in collections:
+        
+        # We need to recreate if existing config doesn't match Gemini's dimension (768 vs old 384)
+        needs_recreate = False
+        if self.collection_name in collections:
+            col_info = self._qdrant_client.get_collection(self.collection_name)
+            if col_info.config.params.vectors.size != self.vector_size:
+                logger.warning("Existing collection dimension (%d) does not match new dimension (%d). Recreating collection.", 
+                               col_info.config.params.vectors.size, self.vector_size)
+                self._qdrant_client.delete_collection(self.collection_name)
+                needs_recreate = True
+
+        if self.collection_name not in collections or needs_recreate:
             self._qdrant_client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
@@ -111,14 +123,32 @@ class EmbeddingService:
                     distance=Distance.COSINE,
                 ),
             )
-            logger.info("Created Qdrant collection: %s", self.collection_name)
+            logger.info("Created Qdrant collection: %s with size %d", self.collection_name, self.vector_size)
 
     # ── Core operations ───────────────────────────────────
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        """Encode a batch of texts into embedding vectors."""
-        embeddings = self.model.encode(texts, show_progress_bar=False)
-        return [emb.tolist() for emb in embeddings]
+        """Encode a batch of texts into embedding vectors using Gemini."""
+        if not texts:
+            return []
+            
+        client = self.model
+        # text-embedding-004 is the recommended model
+        model_name = "text-embedding-004"
+        
+        # Process in chunks to avoid API limits if texts list is huge
+        embeddings = []
+        batch_size = 100
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            response = client.models.embed_content(
+                model=model_name,
+                contents=batch_texts
+            )
+            # embeddings property is a list of Embedding objects
+            embeddings.extend([emb.values for emb in response.embeddings])
+            
+        return embeddings
 
     def upsert_chunks(
         self,

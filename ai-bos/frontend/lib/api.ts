@@ -191,6 +191,32 @@ export async function uploadDocument(file: File): Promise<DocumentItem> {
   return res.json() as Promise<DocumentItem>;
 }
 
+export async function retryDocument(id: string): Promise<DocumentItem> {
+  const token = getToken();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/documents/${id}/retry`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch (err) {
+    const isTypeError = err instanceof TypeError || (err instanceof Error && err.message.includes("fetch"));
+    throw new ApiError(
+      504,
+      isTypeError
+        ? `Upload timed out or server is unreachable. Please try again.`
+        : (err instanceof Error ? err.message : "Network request failed")
+    );
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: "Retry failed" }));
+    throw new ApiError(res.status, data.detail ?? `Retry failed with status ${res.status}`);
+  }
+
+  return res.json() as Promise<DocumentItem>;
+}
+
 export async function getDocuments(): Promise<DocumentItem[]> {
   return apiFetch<DocumentItem[]>("/documents", { auth: true });
 }
