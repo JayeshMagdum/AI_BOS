@@ -145,6 +145,7 @@ class EmbeddingService:
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
             errors = []
+            response = None
             
             for m in [
                 self.model_name, 
