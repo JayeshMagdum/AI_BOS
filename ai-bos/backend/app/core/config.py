@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # AI
     GEMINI_API_KEY: str
-    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_NAME: str = "text-embedding-004"
 
     # Storage
     UPLOAD_DIR: str = "uploads"

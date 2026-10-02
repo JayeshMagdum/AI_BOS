@@ -141,10 +141,23 @@ class EmbeddingService:
         batch_size = 100
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
-            response = client.models.embed_content(
-                model=model_name,
-                contents=batch_texts
-            )
+            response = None
+            last_err = None
+            
+            for m in [self.model_name, "text-embedding-004", "models/embedding-001", "embedding-001"]:
+                try:
+                    response = client.models.embed_content(
+                        model=m,
+                        contents=batch_texts
+                    )
+                    break
+                except Exception as e:
+                    last_err = e
+                    continue
+                    
+            if not response:
+                raise Exception(f"All embedding models failed. Last error: {last_err}")
+                
             # embeddings property is a list of Embedding objects
             embeddings.extend([emb.values for emb in response.embeddings])
             
