@@ -179,7 +179,7 @@ class DocumentService:
                         repo.update_status(
                             document,
                             status="failed",
-                            error_message=f"Processing error: {str(e)[:400]}",
+                            error_message=f"Processing error: {str(e)}",
                         )
                 db.commit()
             except Exception as e:

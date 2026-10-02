@@ -148,12 +148,12 @@ class EmbeddingService:
             response = None
             
             for m in [
+                "text-embedding-005",
+                "gemini-embedding-001",
                 self.model_name, 
                 "gemini-embedding-2",
                 "models/gemini-embedding-2",
-                "text-embedding-005",
                 "text-embedding-004", 
-                "gemini-embedding-001",
                 "models/embedding-001", 
                 "embedding-001"
             ]:
